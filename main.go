@@ -34,11 +34,9 @@ func main() {
 		path, _ := filepath.Abs(os.Args[1])
 		root := storage.NewFileURI(path)
 		ide.setProject(root)
-		//ide.setProject(root)
 
 		w.Show()
 	} else {
-		//ide.showProjectSelect()
 		fmt.Println("else no args")
 	}
 

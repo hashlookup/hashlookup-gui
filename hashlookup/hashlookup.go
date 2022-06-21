@@ -18,7 +18,6 @@ type (
 )
 
 const (
-	//tickerURL = "api/v3/ticker/price"
 	hashlookupURL = "lookup/sha1"
 )
 
@@ -43,7 +42,7 @@ func (c *Client) do(method, endpoint string, param string) (*http.Response, erro
 	return c.httpClient.Do(req)
 }
 
-func (c *Client) LookupSHA1(sha1 string) (resp gabs.Container, err error) {
+func (c *Client) LookupSHA1(sha1 string) (resp *gabs.Container, err error) {
 	res, err := c.do(http.MethodGet, hashlookupURL, sha1)
 	if err != nil {
 		return
@@ -54,8 +53,7 @@ func (c *Client) LookupSHA1(sha1 string) (resp gabs.Container, err error) {
 		return resp, err
 	}
 
-	jsonParsed, err := gabs.ParseJSON([]byte(body))
-	fmt.Println(jsonParsed)
+	resp, err = gabs.ParseJSON([]byte(body))
 	if err != nil {
 		return resp, err
 	}

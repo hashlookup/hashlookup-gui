@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+	"hashlookup-gui/hashlookup"
 )
 
 // Declare conformity with editor interface
@@ -15,8 +16,9 @@ var data = [][]string{[]string{"top left", "top right"},
 	[]string{"bottom left", "bottom right"}}
 
 type folderHashlooker struct {
-	uri fyne.URI
-	win fyne.Window
+	uri    fyne.URI
+	win    fyne.Window
+	client hashlookup.Client
 }
 
 func newFolderHashlooker(u fyne.URI, win fyne.Window) hashlooker {
@@ -40,7 +42,7 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 
 func (g *folderHashlooker) close() {
 	// Close the tab
-	fmt.Println("Here I should be running the analysis.")
+	fmt.Println("Here I should be closing the tab.")
 }
 
 func (g *folderHashlooker) run() {
