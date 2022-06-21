@@ -20,7 +20,7 @@ type hashlookupTab struct {
 type hgui struct {
 	win              fyne.Window
 	projectRoot      fyne.URI
-	resultsTabs      *container.AppTabs
+	resultsTabs      *container.DocTabs
 	fileTree         *xWidget.FileTree
 	openedHashlooker map[*container.TabItem]*hashlookupTab
 }
@@ -37,17 +37,20 @@ func (h *hgui) openHashlooker(u fyne.URI) {
 	// Instantiate a new hashlooker
 	// Can be a file, or a folder.
 	var hl hashlooker
+	var icon fyne.Resource
 	if hl == nil {
 		if isDir, err := storage.CanList(u); err == nil && isDir {
 			hl = hashlookerByURI["folder"](u, h.win)
+			icon = theme.FolderOpenIcon()
 		} else if err == nil && !isDir {
 			hl = hashlookerByURI["file"](u, h.win)
+			icon = theme.FileIcon()
 		} else if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	newTab := container.NewTabItemWithIcon(u.Name(), theme.FileTextIcon(), hl.content())
+	newTab := container.NewTabItemWithIcon(u.Name(), icon, hl.content())
 	h.openedHashlooker[newTab] = &hashlookupTab{hl, u}
 
 	h.resultsTabs.Append(newTab)

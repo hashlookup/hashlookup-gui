@@ -73,7 +73,7 @@ func (h *hgui) makeFilesPanel() *xWidget.FileTree {
 func (h *hgui) makeResultsPanel() fyne.CanvasObject {
 	h.openedHashlooker = make(map[*container.TabItem]*hashlookupTab)
 	welcome := widget.NewLabel("Welcome to Hashlookup-gui, the blahblah.\n\nChoose a starting folder in the list.")
-	h.resultsTabs = container.NewAppTabs(
+	h.resultsTabs = container.NewDocTabs(
 		container.NewTabItem("Welcome", welcome),
 	)
 
