@@ -23,14 +23,14 @@ type line struct {
 
 type fileHashlooker struct {
 	uri                fyne.URI
-	win                fyne.Window
+	hgui               *hgui
 	client             *hashlookup.Client
 	sha1               string
 	hashlookupData     []line
 	hashlookupBindings []binding.DataMap
 }
 
-func newFileHashlooker(u fyne.URI, win fyne.Window) hashlooker {
+func newFileHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 	singleFile, err := ioutil.ReadFile(u.Path())
 	if err != nil {
 		log.Fatal(err)
@@ -43,7 +43,7 @@ func newFileHashlooker(u fyne.URI, win fyne.Window) hashlooker {
 	// Init bindings
 	hashlookupData := []line{}
 	hashlookupBindings := []binding.DataMap{}
-	return &fileHashlooker{uri: u, win: win, sha1: digest, client: client, hashlookupData: hashlookupData, hashlookupBindings: hashlookupBindings}
+	return &fileHashlooker{uri: u, hgui: hgui, sha1: digest, client: client, hashlookupData: hashlookupData, hashlookupBindings: hashlookupBindings}
 }
 
 func (g *fileHashlooker) content() fyne.CanvasObject {
@@ -75,7 +75,6 @@ func (g *fileHashlooker) content() fyne.CanvasObject {
 	go func() {
 		var err error
 		results, err := g.client.LookupSHA1(g.sha1)
-		fmt.Println(results)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -25,7 +25,7 @@ type hgui struct {
 	openedHashlooker map[*container.TabItem]*hashlookupTab
 }
 
-func (h *hgui) openHashlooker(u fyne.URI) {
+func (h *hgui) OpenHashlooker(u fyne.URI) {
 	// Tab already opened, set selected
 	for tab, item := range h.openedHashlooker {
 		if item.uri.String() == u.String() {
@@ -40,10 +40,10 @@ func (h *hgui) openHashlooker(u fyne.URI) {
 	var icon fyne.Resource
 	if hl == nil {
 		if isDir, err := storage.CanList(u); err == nil && isDir {
-			hl = hashlookerByURI["folder"](u, h.win)
+			hl = hashlookerByURI["folder"](u, h)
 			icon = theme.FolderOpenIcon()
 		} else if err == nil && !isDir {
-			hl = hashlookerByURI["file"](u, h.win)
+			hl = hashlookerByURI["file"](u, h)
 			icon = theme.FileIcon()
 		} else if err != nil {
 			log.Fatal(err)

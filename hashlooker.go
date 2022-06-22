@@ -2,7 +2,7 @@ package main
 
 import "fyne.io/fyne/v2"
 
-var hashlookerByURI = map[string]func(fyne.URI, fyne.Window) hashlooker{
+var hashlookerByURI = map[string]func(fyne.URI, *hgui) hashlooker{
 	"folder": newFolderHashlooker,
 	"file":   newFileHashlooker,
 }

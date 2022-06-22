@@ -27,7 +27,7 @@ func (h *hgui) makeFilesPanel() *xWidget.FileTree {
 	files.OnSelected = func(uid widget.TreeNodeID) {
 		u, err := storage.ParseURI(uid)
 
-		h.openHashlooker(u)
+		h.OpenHashlooker(u)
 		return
 
 		//isDir, _ := storage.CanList(u)
