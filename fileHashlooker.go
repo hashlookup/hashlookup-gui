@@ -16,13 +16,18 @@ import (
 // Declare conformity with editor interface
 var _ hashlooker = (*fileHashlooker)(nil)
 
+type line struct {
+	Key   string
+	Value string
+}
+
 type fileHashlooker struct {
-	uri                   fyne.URI
-	win                   fyne.Window
-	client                *hashlookup.Client
-	sha1                  string
-	hashlookupBindingData binding.ExternalString
-	hashlookupData        string
+	uri                fyne.URI
+	win                fyne.Window
+	client             *hashlookup.Client
+	sha1               string
+	hashlookupData     []line
+	hashlookupBindings []binding.DataMap
 }
 
 func newFileHashlooker(u fyne.URI, win fyne.Window) hashlooker {
@@ -35,38 +40,58 @@ func newFileHashlooker(u fyne.URI, win fyne.Window) hashlooker {
 	digest := fmt.Sprintf("%x", h.Sum(nil))
 	defaultTimeout := time.Second * 10
 	client := hashlookup.NewClient("https://hashlookup.circl.lu", os.Getenv("HASHLOOKUP_API_KEY"), defaultTimeout)
-	return &fileHashlooker{uri: u, win: win, sha1: digest, client: client}
+	// Init bindings
+	hashlookupData := []line{}
+	hashlookupBindings := []binding.DataMap{}
+	return &fileHashlooker{uri: u, win: win, sha1: digest, client: client, hashlookupData: hashlookupData, hashlookupBindings: hashlookupBindings}
 }
 
 func (g *fileHashlooker) content() fyne.CanvasObject {
-	g.hashlookupData = "placeholder"
-	g.hashlookupBindingData = binding.BindString(&g.hashlookupData)
-	text := widget.NewLabelWithData(g.hashlookupBindingData)
-	text.Wrapping = fyne.TextTruncate
+	t := widget.NewTable(
+		func() (int, int) { return len(g.hashlookupData), 2 },
+		func() fyne.CanvasObject {
+			return widget.NewLabel("Cell 000, 000")
+		},
+		func(id widget.TableCellID, cell fyne.CanvasObject) {
+			//label := cell.(*widget.Label)
+			switch id.Col {
+			case 0:
+				tmphead, err := g.hashlookupBindings[id.Row].GetItem("Key")
+				if err != nil {
+					log.Fatal(err)
+				}
+				cell.(*widget.Label).Bind(tmphead.(binding.String))
+			case 1:
+				tmpvalue, err := g.hashlookupBindings[id.Row].GetItem("Value")
+				if err != nil {
+					log.Fatal(err)
+				}
+				cell.(*widget.Label).Bind(tmpvalue.(binding.String))
+			}
+		})
+	t.SetColumnWidth(0, 200)
+	t.SetColumnWidth(1, 800)
+
 	go func() {
+		var err error
 		results, err := g.client.LookupSHA1(g.sha1)
+		fmt.Println(results)
 		if err != nil {
 			log.Fatal(err)
 		}
-		for key, child := range results.ChildrenMap() {
-			//fmt.Printf("key: %v, value: %v\n", key, child.Data())
-			g.hashlookupData += fmt.Sprintf("key: %v, value: %v\n", key, child.Data())
+
+		// update the string from hashlookup
+		for key, value := range results.ChildrenMap() {
+			tmpline := line{Key: fmt.Sprintf("%v", key), Value: fmt.Sprintf("%v", value)}
+			g.hashlookupData = append(g.hashlookupData, tmpline)
+			g.hashlookupBindings = append(g.hashlookupBindings, binding.BindStruct(&tmpline))
 		}
-		g.hashlookupBindingData.Reload()
+
+		t.Refresh()
 	}()
 
-	return text
+	return t
 }
-
-//func (g *fileHashlooker) content() fyne.CanvasObject {
-//	Here we detail each field we received from the hashlookup service
-//	TODO - dummy label for the time being
-//results, err := g.client.LookupSHA1(g.sha1)
-//if err != nil {
-//	log.Fatal(err)
-//}
-//return widget.NewLabel(fmt.Sprintf("%s", results))
-//}
 
 func (g *fileHashlooker) close() {
 	// Close the tab
