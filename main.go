@@ -2,13 +2,12 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/storage"
+	"os"
+	"path/filepath"
 )
 
 func (d *hgui) setProject(u fyne.URI) {
@@ -35,10 +34,10 @@ func main() {
 		root := storage.NewFileURI(path)
 		ide.setProject(root)
 
-		w.Show()
+		//w.Show()
 	} else {
 		fmt.Println("else no args")
 	}
 
-	a.Run()
+	w.ShowAndRun()
 }

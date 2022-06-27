@@ -1,63 +1,164 @@
 package main
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"hashlookup-gui/hashlookup"
+	"io/ioutil"
 	"log"
+	"os"
+	"time"
 )
 
 // Declare conformity with editor interface
 var _ hashlooker = (*folderHashlooker)(nil)
 
+type fileLookup struct {
+	Uri *fyne.URI
+	// ReqOnline true if the value has been queried online
+	ReqOnline bool
+	// ReqOnline true if the value has been queried against the bloom filter
+	ReqOffline bool
+	KnownStr   *string
+	Known      binding.String
+	Sha1       binding.String
+	Sha1Str    *string
+}
+
 type folderHashlooker struct {
-	uri    fyne.URI
-	hgui   *hgui
-	client hashlookup.Client
+	uri        fyne.URI
+	hgui       *hgui
+	client     *hashlookup.Client
+	fileList   []fileLookup
+	folderList []fyne.URI
 }
 
 func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
-	return &folderHashlooker{uri: u, hgui: hgui}
-}
-
-func (g *folderHashlooker) content() fyne.CanvasObject {
-	data, err := storage.List(g.uri)
+	// List folder
+	data, err := storage.List(u)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fileList := []fileLookup{}
+	folderList := []fyne.URI{}
 
-	list := widget.NewList(
-		func() int {
-			return len(data)
-		},
-		func() fyne.CanvasObject {
-			return container.NewHBox(widget.NewIcon(theme.DocumentIcon()), widget.NewLabel("Template Object"))
-		},
-		func(id widget.ListItemID, item fyne.CanvasObject) {
-			var icon fyne.Resource
-			if isDir, err := storage.CanList(data[id]); err == nil && isDir {
-				icon = theme.FolderOpenIcon()
-			} else if err == nil && !isDir {
-				icon = theme.FileIcon()
-			} else if err != nil {
+	// Triaging files and folders
+	for _, uri := range data {
+		if isDir, err := storage.CanList(uri); err == nil && isDir {
+			folderList = append(folderList, uri)
+		} else if err == nil && !isDir {
+			singleFile, err := ioutil.ReadFile(uri.Path())
+			if err != nil {
 				log.Fatal(err)
 			}
-			item.(*fyne.Container).Objects[0].(*widget.Icon).Resource = icon
-			item.(*fyne.Container).Objects[0].(*widget.Icon).Refresh()
-			item.(*fyne.Container).Objects[1].(*widget.Label).SetText(data[id].Name())
-		},
-	)
-	list.OnSelected = func(id widget.ListItemID) {
-		g.hgui.OpenHashlooker(data[id])
-	}
-	list.OnUnselected = func(id widget.ListItemID) {
+			h := sha1.New()
+			h.Write(singleFile)
+			digest := fmt.Sprintf("%x", h.Sum(nil))
+			tmpKnown := "Unknown"
+			tmpFileLookup := fileLookup{
+				Uri:        &uri,
+				ReqOffline: false,
+				ReqOnline:  false,
+				KnownStr:   &tmpKnown,
+				Known:      binding.BindString(&tmpKnown),
+				Sha1Str:    &digest,
+				Sha1:       binding.BindString(&digest),
+			}
+			fileList = append(fileList, tmpFileLookup)
+		} else if err != nil {
+			log.Fatal(err)
+		}
 	}
 
-	return list
+	// Init hashlookup client
+	defaultTimeout := time.Second * 10
+	client := hashlookup.NewClient("https://hashlookup.circl.lu", os.Getenv("HASHLOOKUP_API_KEY"), defaultTimeout)
+
+	return &folderHashlooker{uri: u, hgui: hgui, fileList: fileList, folderList: folderList, client: client}
+}
+
+func (g *folderHashlooker) content() fyne.CanvasObject {
+	var toDisplay []*widget.List
+	var listFolders *widget.List
+	var listFiles *widget.List
+
+	if len(g.folderList) > 0 {
+		listFolders = widget.NewList(
+			func() int {
+				return len(g.folderList)
+			},
+			func() fyne.CanvasObject {
+				return container.NewHBox(widget.NewIcon(theme.FolderOpenIcon()), widget.NewLabel("Template Object"))
+			},
+			func(id widget.ListItemID, item fyne.CanvasObject) {
+				item.(*fyne.Container).Objects[1].(*widget.Label).SetText(g.folderList[id].Name())
+				//item.(*fyne.Container).Objects[1].(*widget.Icon).Refresh()
+			},
+		)
+		listFolders.OnSelected = func(id widget.ListItemID) {
+			g.hgui.OpenHashlooker(g.folderList[id])
+		}
+		toDisplay = append(toDisplay, listFolders)
+	}
+
+	if len(g.fileList) > 0 {
+		listFiles = widget.NewList(
+			func() int {
+				return len(g.fileList)
+			},
+			func() fyne.CanvasObject {
+				return container.NewHBox(widget.NewIcon(theme.FileIcon()), widget.NewLabel("Template Object"), widget.NewLabel("Template Object"), widget.NewLabel("Template Object"))
+			},
+			func(id widget.ListItemID, item fyne.CanvasObject) {
+				item.(*fyne.Container).Objects[1].(*widget.Label).SetText((*g.fileList[id].Uri).Name())
+				item.(*fyne.Container).Objects[2].(*widget.Label).Bind(g.fileList[id].Sha1)
+				item.(*fyne.Container).Objects[3].(*widget.Label).Bind(g.fileList[id].Known)
+
+				// Launch the lookup
+				// TODO offline mode against the bloom filter
+				if !g.fileList[id].ReqOffline && !g.fileList[id].ReqOnline {
+					go func() {
+						g.fileList[id].ReqOnline = true
+						var err error
+						results, err := g.client.LookupSHA1(*g.fileList[id].Sha1Str)
+						if err != nil {
+							log.Fatal(err)
+						}
+						if results.S("message").String() == "\"Non existing SHA-1\"" {
+							g.fileList[id].Known.Set("Unknown")
+							//g.fileList[id].Icon.Resource = theme.CheckButtonIcon()
+							//g.fileList[id].Icon.Refresh()
+						} else {
+							g.fileList[id].Known.Set("Known")
+							//g.fileList[id].Icon.Resource = theme.CheckButtonCheckedIcon()
+							//g.fileList[id].Icon.Refresh()
+						}
+						fmt.Println("request done yo.")
+					}()
+				}
+			},
+		)
+
+		listFiles.OnSelected = func(id widget.ListItemID) {
+			g.hgui.OpenHashlooker(*(g.fileList[id].Uri))
+		}
+		toDisplay = append(toDisplay, listFiles)
+	}
+
+	switch len(toDisplay) {
+	case 1:
+		return toDisplay[0]
+	case 2:
+		return container.NewVBox(listFolders, listFiles)
+	default:
+		return widget.NewLabel("Empty folder")
+	}
 }
 
 func (g *folderHashlooker) close() {

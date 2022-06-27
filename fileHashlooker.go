@@ -31,6 +31,7 @@ type fileHashlooker struct {
 }
 
 func newFileHashlooker(u fyne.URI, hgui *hgui) hashlooker {
+	// Compute Sha-1
 	singleFile, err := ioutil.ReadFile(u.Path())
 	if err != nil {
 		log.Fatal(err)
@@ -38,6 +39,7 @@ func newFileHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 	h := sha1.New()
 	h.Write(singleFile)
 	digest := fmt.Sprintf("%x", h.Sum(nil))
+	// Init hashlookup client
 	defaultTimeout := time.Second * 10
 	client := hashlookup.NewClient("https://hashlookup.circl.lu", os.Getenv("HASHLOOKUP_API_KEY"), defaultTimeout)
 	// Init bindings
