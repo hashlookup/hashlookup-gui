@@ -35,7 +35,7 @@ type folderHashlooker struct {
 	uri        fyne.URI
 	hgui       *hgui
 	client     *hashlookup.Client
-	fileList   []fileLookup
+	fileList   []*fileLookup
 	folderList []fyne.URI
 	grothons   TunnyJob
 }
@@ -62,20 +62,21 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fileList := []fileLookup{}
+	fileList := []*fileLookup{}
 	folderList := []fyne.URI{}
 	grothons := newTunnyJob(0, workerFunc)
 
 	// Triaging files and folders
-	//for i, uri := range data {
-	for i, uri := range data {
-		if isDir, err := storage.CanList(uri); err == nil && isDir {
-			folderList = append(folderList, uri)
+	for _, uri := range data {
+		// tmp variable to detach from the iteartion variable
+		tmpUri := uri
+		if isDir, err := storage.CanList(tmpUri); err == nil && isDir {
+			folderList = append(folderList, tmpUri)
 		} else if err == nil && !isDir {
 			digest := ""
 			tmpKnown := "Unknown"
 			tmpFileLookup := fileLookup{
-				Uri:        &uri,
+				Uri:        &tmpUri,
 				ReqOffline: false,
 				ReqOnline:  false,
 				KnownStr:   &tmpKnown,
@@ -84,13 +85,13 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 				Sha1:       binding.BindString(&digest),
 			}
 
-			fileList = append(fileList, tmpFileLookup)
-
 			// TODO check cycling bug
 			go func() {
-				results := grothons.Pool.Process(uri).(string)
-				fileList[i].Sha1.Set(results)
+				results := grothons.Pool.Process(tmpUri).(string)
+				tmpFileLookup.Sha1.Set(results)
 			}()
+
+			fileList = append(fileList, &tmpFileLookup)
 
 		} else if err != nil {
 			log.Fatal(err)
@@ -172,7 +173,8 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 	case 1:
 		return toDisplay[0]
 	case 2:
-		return container.NewVBox(listFolders, listFiles)
+		// Create a merge slice to avoid minsize issues in VBox layout
+		return container.NewGridWithColumns(1, toDisplay[0], toDisplay[1])
 	default:
 		return widget.NewLabel("Empty folder")
 	}
