@@ -37,6 +37,23 @@ type folderHashlooker struct {
 	client     *hashlookup.Client
 	fileList   []fileLookup
 	folderList []fyne.URI
+	grothons   TunnyJob
+}
+
+func workerFunc(myinterface interface{}) interface{} {
+	var result string
+
+	tmpuri := myinterface.(fyne.URI)
+	fmt.Printf("Hashing %v\n", tmpuri.Name())
+	singleFile, err := ioutil.ReadFile(tmpuri.Path())
+	if err != nil {
+		log.Fatal(err)
+	}
+	h := sha1.New()
+	h.Write(singleFile)
+	result = fmt.Sprintf("%x", h.Sum(nil))
+
+	return result
 }
 
 func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
@@ -47,8 +64,10 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 	}
 	fileList := []fileLookup{}
 	folderList := []fyne.URI{}
+	grothons := newTunnyJob(0, workerFunc)
 
 	// Triaging files and folders
+	//for i, uri := range data {
 	for i, uri := range data {
 		if isDir, err := storage.CanList(uri); err == nil && isDir {
 			folderList = append(folderList, uri)
@@ -67,16 +86,10 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 
 			fileList = append(fileList, tmpFileLookup)
 
+			// TODO check cycling bug
 			go func() {
-				fmt.Printf("Hashing %v\n", uri.Name())
-				singleFile, err := ioutil.ReadFile(uri.Path())
-				if err != nil {
-					log.Fatal(err)
-				}
-				h := sha1.New()
-				h.Write(singleFile)
-				digest = fmt.Sprintf("%x", h.Sum(nil))
-				fileList[i].Sha1.Set(digest)
+				results := grothons.Pool.Process(uri).(string)
+				fileList[i].Sha1.Set(results)
 			}()
 
 		} else if err != nil {
@@ -88,7 +101,7 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 	defaultTimeout := time.Second * 10
 	client := hashlookup.NewClient("https://hashlookup.circl.lu", os.Getenv("HASHLOOKUP_API_KEY"), defaultTimeout)
 
-	return &folderHashlooker{uri: u, hgui: hgui, fileList: fileList, folderList: folderList, client: client}
+	return &folderHashlooker{uri: u, hgui: hgui, fileList: fileList, folderList: folderList, client: client, grothons: *grothons}
 }
 
 func (g *folderHashlooker) content() fyne.CanvasObject {
