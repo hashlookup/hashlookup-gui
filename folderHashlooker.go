@@ -49,17 +49,11 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 	folderList := []fyne.URI{}
 
 	// Triaging files and folders
-	for _, uri := range data {
+	for i, uri := range data {
 		if isDir, err := storage.CanList(uri); err == nil && isDir {
 			folderList = append(folderList, uri)
 		} else if err == nil && !isDir {
-			singleFile, err := ioutil.ReadFile(uri.Path())
-			if err != nil {
-				log.Fatal(err)
-			}
-			h := sha1.New()
-			h.Write(singleFile)
-			digest := fmt.Sprintf("%x", h.Sum(nil))
+			digest := ""
 			tmpKnown := "Unknown"
 			tmpFileLookup := fileLookup{
 				Uri:        &uri,
@@ -70,7 +64,21 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 				Sha1Str:    &digest,
 				Sha1:       binding.BindString(&digest),
 			}
+
 			fileList = append(fileList, tmpFileLookup)
+
+			go func() {
+				fmt.Printf("Hashing %v\n", uri.Name())
+				singleFile, err := ioutil.ReadFile(uri.Path())
+				if err != nil {
+					log.Fatal(err)
+				}
+				h := sha1.New()
+				h.Write(singleFile)
+				digest = fmt.Sprintf("%x", h.Sum(nil))
+				fileList[i].Sha1.Set(digest)
+			}()
+
 		} else if err != nil {
 			log.Fatal(err)
 		}
@@ -98,7 +106,6 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 			},
 			func(id widget.ListItemID, item fyne.CanvasObject) {
 				item.(*fyne.Container).Objects[1].(*widget.Label).SetText(g.folderList[id].Name())
-				//item.(*fyne.Container).Objects[1].(*widget.Icon).Refresh()
 			},
 		)
 		listFolders.OnSelected = func(id widget.ListItemID) {
@@ -124,6 +131,7 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 				// TODO offline mode against the bloom filter
 				if !g.fileList[id].ReqOffline && !g.fileList[id].ReqOnline {
 					go func() {
+						// TODO mutex
 						g.fileList[id].ReqOnline = true
 						var err error
 						results, err := g.client.LookupSHA1(*g.fileList[id].Sha1Str)
@@ -132,14 +140,10 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 						}
 						if results.S("message").String() == "\"Non existing SHA-1\"" {
 							g.fileList[id].Known.Set("Unknown")
-							//g.fileList[id].Icon.Resource = theme.CheckButtonIcon()
-							//g.fileList[id].Icon.Refresh()
 						} else {
 							g.fileList[id].Known.Set("Known")
-							//g.fileList[id].Icon.Resource = theme.CheckButtonCheckedIcon()
-							//g.fileList[id].Icon.Refresh()
 						}
-						fmt.Println("request done yo.")
+						fmt.Printf("Request performed for %v\n", *g.fileList[id].Sha1Str)
 					}()
 				}
 			},

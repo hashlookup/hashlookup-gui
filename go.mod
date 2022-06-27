@@ -11,6 +11,7 @@ require (
 	fyne.io/systray v1.10.0 // indirect
 	github.com/BurntSushi/toml v1.1.0 // indirect
 	github.com/Jeffail/gabs/v2 v2.6.1 // indirect
+	github.com/Jeffail/tunny v0.1.4 // indirect
 	github.com/Kodeworks/golang-image-ico v0.0.0-20141118225523-73f0f4cfade9 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fredbi/uri v0.0.0-20181227131451-3dcfdacbaaf3 // indirect
