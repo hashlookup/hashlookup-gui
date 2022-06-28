@@ -97,7 +97,7 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 
 	// Triaging files and folders
 	for _, uri := range data {
-		// tmp variable to detach from the iteartion variable
+		// tmp variable to detach from the iteration variable
 		tmpUri := uri
 		if isDir, err := storage.CanList(tmpUri); err == nil && isDir {
 			folderList = append(folderList, tmpUri)
@@ -114,7 +114,6 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 				Sha1:       binding.BindString(&digest),
 			}
 
-			// TODO check cycling bug
 			go func() {
 				results := tunnyHash.Pool.Process(tmpUri).(string)
 				tmpFileLookup.Sha1.Set(results)
@@ -124,7 +123,7 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 				if reqResults.S("message").String() == "\"Non existing SHA-1\"" {
 					tmpFileLookup.Known.Set("Unknown")
 				} else {
-					tmpFileLookup.Known.Set("Know")
+					tmpFileLookup.Known.Set("Known")
 				}
 			}()
 

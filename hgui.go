@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	xWidget "fyne.io/x/fyne/widget"
+	"hashlookup-gui/hashlookup"
 	"log"
 )
 
@@ -23,6 +24,8 @@ type hgui struct {
 	resultsTabs      *container.DocTabs
 	fileTree         *xWidget.FileTree
 	openedHashlooker map[*container.TabItem]*hashlookupTab
+	// The Bloom filter is tied to the application
+	filter *hashlookup.HashlookupBloom
 }
 
 func (h *hgui) OpenHashlooker(u fyne.URI) {
