@@ -27,6 +27,24 @@ func (h *hgui) showSwitchOffline() {
 	}
 }
 
+func (h *hgui) loadFilterFromFile() {
+	dialog.ShowFileOpen(func(u fyne.URIReadCloser, err error) {
+		if err != nil {
+			dialog.ShowError(err, h.win)
+			return
+		}
+		if u == nil {
+			return
+		}
+		h.filter = hashlookup.NewHashlookupBloom(u.URI().Path())
+		if err != nil {
+			dialog.ShowError(err, h.win)
+		} else {
+			h.OpenBloomFilter("load")
+		}
+	}, h.win)
+}
+
 func (h *hgui) showSaveBloomDialog() {
 	parent := widget.NewButton("Choose directory", nil)
 	dir := defaultDir()
@@ -61,7 +79,7 @@ func (h *hgui) showSaveBloomDialog() {
 		if err != nil {
 			dialog.ShowError(err, h.win)
 		} else {
-			h.OpenBloomFilter()
+			h.OpenBloomFilter("download")
 		}
 	}, h.win)
 }
@@ -83,8 +101,9 @@ func (h *hgui) makeMenu() *fyne.MainMenu {
 		fyne.NewMenu("File",
 			fyne.NewMenuItemSeparator(),
 			fyne.NewMenuItem("Download Filter", h.showSaveBloomDialog),
+			fyne.NewMenuItem("Load Filter", h.loadFilterFromFile),
+			fyne.NewMenuItemSeparator(),
 			fyne.NewMenuItem("Switch Offline mode", h.showSwitchOffline),
-			//fyne.NewMenuItemSeparator(),
 			//fyne.NewMenuItem("Save", h.menuActionSave),
 			//fyne.NewMenuItem("Run Online", h.menuActionRunOnline),
 			//fyne.NewMenuItem("Run Offline", h.menuActionRunOffline),

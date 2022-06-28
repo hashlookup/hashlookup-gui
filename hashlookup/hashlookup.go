@@ -118,7 +118,7 @@ func NewHashlookupBloom(path string) *HashlookupBloom {
 }
 
 // DownloadFilterToFile is download the bloom filter into
-// the file at path. Beware this is blocking and take time
+// the file at path. Beware this is blocking and takes time
 func (h *HashlookupBloom) DownloadFilterToFile() error {
 	var err error
 	out, err := os.Create(h.path)
@@ -138,13 +138,15 @@ func (h *HashlookupBloom) DownloadFilterToFile() error {
 	return nil
 }
 
+// LoadFilterFromFile loads the bloom filter from the file
+// located at path. Beware this is blocking and takes time
 func (h *HashlookupBloom) LoadFilterFromFile() error {
 	var err error
 	h.b, err = bloom.LoadFilter(h.path, _bloomFilterGzip)
-	if err != nil {
-		return err
-	}
 	h.GetFilterDetails()
+	if err != nil {
+		log.Fatal(err)
+	}
 	h.Ready = true
 	h.StopBar()
 	return nil
