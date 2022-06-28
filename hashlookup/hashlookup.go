@@ -117,7 +117,29 @@ func NewHashlookupBloom(path string) *HashlookupBloom {
 	}
 }
 
-// DownloadFilterToFile is download the bloom filter into
+// DownloadFilterToFilter downloads the bloom filter
+// and load it without touching the disk
+func (h *HashlookupBloom) DownloadFilterToFilter() error {
+	var err error
+	resp, err := http.Get(_bloomFilterDefaultUrl)
+	defer resp.Body.Close()
+	// wrap http.Get in the WriteCounter
+	src := io.TeeReader(resp.Body, h.counter)
+	if err != nil {
+		return err
+	}
+	h.b, err = bloom.LoadFromReader(src, _bloomFilterGzip)
+	if err != nil {
+		log.Fatalf("Issue when reading from the remote %s: %s", _bloomFilterDefaultUrl, err)
+	}
+	h.Complete = true
+	h.GetFilterDetails()
+	h.Ready = true
+	h.StopBar()
+	return nil
+}
+
+// DownloadFilterToFile downloads the bloom filter into
 // the file at path. Beware this is blocking and takes time
 func (h *HashlookupBloom) DownloadFilterToFile() error {
 	var err error
@@ -132,7 +154,7 @@ func (h *HashlookupBloom) DownloadFilterToFile() error {
 	src := io.TeeReader(resp.Body, h.counter)
 	_, err = io.Copy(out, src)
 	if err != nil {
-		return err
+		log.Fatalf("Issue when reading from the remote %s: %s", _bloomFilterDefaultUrl, err)
 	}
 	h.Complete = true
 	return nil

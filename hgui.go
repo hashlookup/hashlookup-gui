@@ -80,6 +80,8 @@ func (h *hgui) OpenBloomFilter(operation string) {
 		}()
 	case "load":
 		go h.filter.LoadFilterFromFile()
+	case "remote":
+		go h.filter.DownloadFilterToFilter()
 	}
 
 	newTab := container.NewTabItemWithIcon("Bloom filter", theme.InfoIcon(), h.filter.Content())

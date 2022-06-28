@@ -27,6 +27,11 @@ func (h *hgui) showSwitchOffline() {
 	}
 }
 
+func (h *hgui) loadFilterFromRemote() {
+	h.filter = hashlookup.NewHashlookupBloom("it's in your RAM dude.")
+	h.OpenBloomFilter("remote")
+}
+
 func (h *hgui) loadFilterFromFile() {
 	dialog.ShowFileOpen(func(u fyne.URIReadCloser, err error) {
 		if err != nil {
@@ -101,7 +106,8 @@ func (h *hgui) makeMenu() *fyne.MainMenu {
 		fyne.NewMenu("File",
 			fyne.NewMenuItemSeparator(),
 			fyne.NewMenuItem("Download Filter", h.showSaveBloomDialog),
-			fyne.NewMenuItem("Load Filter", h.loadFilterFromFile),
+			fyne.NewMenuItem("Load Filter From File", h.loadFilterFromFile),
+			fyne.NewMenuItem("Load Filter From Remote", h.loadFilterFromRemote),
 			fyne.NewMenuItemSeparator(),
 			fyne.NewMenuItem("Switch Offline mode", h.showSwitchOffline),
 			//fyne.NewMenuItem("Save", h.menuActionSave),
