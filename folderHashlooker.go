@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/Jeffail/gabs/v2"
 	"hashlookup-gui/hashlookup"
 	"io"
 	"log"
@@ -37,12 +38,12 @@ type folderHashlooker struct {
 	client     *hashlookup.Client
 	fileList   []*fileLookup
 	folderList []fyne.URI
-	grothons   TunnyJob
+	tunnyHash  TunnyJob
+	tunnyReq   TunnyJob
 }
 
-func workerFunc(myinterface interface{}) interface{} {
+func hashingWorkerFunc(myinterface interface{}) interface{} {
 	var result string
-
 	tmpuri := myinterface.(fyne.URI)
 	fmt.Printf("Hashing %v\n", tmpuri.Name())
 	f, err := os.Open(tmpuri.Path())
@@ -57,16 +58,26 @@ func workerFunc(myinterface interface{}) interface{} {
 	}
 
 	result = fmt.Sprintf("%x", h.Sum(nil))
-
-	//singleFile, err := ioutil.ReadFile(tmpuri.Path())
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//h := sha1.New()
-	//h.Write(singleFile)
-	//result = fmt.Sprintf("%x", h.Sum(nil))
-
 	return result
+}
+
+type requestingWorkerType struct {
+	c          *hashlookup.Client
+	fileLookup *fileLookup
+}
+
+func requestingWorkerFunc(myinterface interface{}) interface{} {
+	tmpWorkerType := myinterface.(requestingWorkerType)
+	var err error
+	//results, err := tmpFileLookup.c.LookupSHA1()
+	results, err := tmpWorkerType.c.LookupSHA1(*tmpWorkerType.fileLookup.Sha1Str)
+	if err != nil {
+		log.Println(results)
+		log.Println(err)
+	}
+
+	fmt.Printf("Request performed for %v\n", *tmpWorkerType.fileLookup.Sha1Str)
+	return results
 }
 
 func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
@@ -77,7 +88,12 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 	}
 	fileList := []*fileLookup{}
 	folderList := []fyne.URI{}
-	grothons := newTunnyJob(0, workerFunc)
+	tunnyHash := newTunnyJob(0, hashingWorkerFunc)
+	tunnyReq := newTunnyJob(0, requestingWorkerFunc)
+
+	// Init hashlookup client
+	defaultTimeout := time.Second * 10
+	client := hashlookup.NewClient("https://hashlookup.circl.lu", os.Getenv("HASHLOOKUP_API_KEY"), defaultTimeout)
 
 	// Triaging files and folders
 	for _, uri := range data {
@@ -100,8 +116,16 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 
 			// TODO check cycling bug
 			go func() {
-				results := grothons.Pool.Process(tmpUri).(string)
+				results := tunnyHash.Pool.Process(tmpUri).(string)
 				tmpFileLookup.Sha1.Set(results)
+
+				reqResults := tunnyReq.Pool.Process(requestingWorkerType{c: client, fileLookup: &tmpFileLookup}).(*gabs.Container)
+
+				if reqResults.S("message").String() == "\"Non existing SHA-1\"" {
+					tmpFileLookup.Known.Set("Unknown")
+				} else {
+					tmpFileLookup.Known.Set("Know")
+				}
 			}()
 
 			fileList = append(fileList, &tmpFileLookup)
@@ -111,11 +135,7 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 		}
 	}
 
-	// Init hashlookup client
-	defaultTimeout := time.Second * 10
-	client := hashlookup.NewClient("https://hashlookup.circl.lu", os.Getenv("HASHLOOKUP_API_KEY"), defaultTimeout)
-
-	return &folderHashlooker{uri: u, hgui: hgui, fileList: fileList, folderList: folderList, client: client, grothons: *grothons}
+	return &folderHashlooker{uri: u, hgui: hgui, fileList: fileList, folderList: folderList, client: client, tunnyHash: *tunnyHash, tunnyReq: *tunnyReq}
 }
 
 func (g *folderHashlooker) content() fyne.CanvasObject {
@@ -156,26 +176,6 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 				item.(*fyne.Container).Objects[2].(*widget.Label).Bind(g.fileList[id].Sha1)
 				item.(*fyne.Container).Objects[3].(*widget.Label).Bind(g.fileList[id].Known)
 
-				// Launch the lookup
-				// TODO offline mode against the bloom filter
-				if !g.fileList[id].ReqOffline && !g.fileList[id].ReqOnline {
-					go func() {
-						// TODO mutex
-						g.fileList[id].ReqOnline = true
-						var err error
-						results, err := g.client.LookupSHA1(*g.fileList[id].Sha1Str)
-						if err != nil {
-							log.Println(results)
-							log.Println(err)
-						}
-						if results.S("message").String() == "\"Non existing SHA-1\"" {
-							g.fileList[id].Known.Set("Unknown")
-						} else {
-							g.fileList[id].Known.Set("Known")
-						}
-						fmt.Printf("Request performed for %v\n", *g.fileList[id].Sha1Str)
-					}()
-				}
 			},
 		)
 
