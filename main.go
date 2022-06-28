@@ -30,7 +30,7 @@ func main() {
 	w.Resize(fyne.NewSize(1024, 768))
 
 	tmpBloom := hashlookup.HashlookupBloom{}
-	ide := &hgui{win: w, offlineMode: false, filter: &tmpBloom}
+	ide := &hgui{win: w, offlineMode: false, filter: &tmpBloom, app: &a}
 	if len(os.Args) > 1 {
 		path, _ := filepath.Abs(os.Args[1])
 		root := storage.NewFileURI(path)

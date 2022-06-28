@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -102,18 +103,24 @@ func (h *hgui) menuActionSave() {
 }
 
 func (h *hgui) makeMenu() *fyne.MainMenu {
-	return fyne.NewMainMenu(
-		fyne.NewMenu("File",
-			fyne.NewMenuItemSeparator(),
-			fyne.NewMenuItem("Download Filter", h.showSaveBloomDialog),
-			fyne.NewMenuItem("Load Filter From File", h.loadFilterFromFile),
-			fyne.NewMenuItem("Load Filter From Remote", h.loadFilterFromRemote),
-			fyne.NewMenuItemSeparator(),
-			fyne.NewMenuItem("Switch Offline mode", h.showSwitchOffline),
-			//fyne.NewMenuItem("Save", h.menuActionSave),
-			//fyne.NewMenuItem("Run Online", h.menuActionRunOnline),
-			//fyne.NewMenuItem("Run Offline", h.menuActionRunOffline),
-		))
+	file := fyne.NewMenu("File",
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Download Filter", h.showSaveBloomDialog),
+		fyne.NewMenuItem("Load Filter From File", h.loadFilterFromFile),
+		fyne.NewMenuItem("Load Filter From Remote", h.loadFilterFromRemote),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Switch Offline mode", h.showSwitchOffline),
+		//fyne.NewMenuItem("Save", h.menuActionSave),
+		//fyne.NewMenuItem("Run Online", h.menuActionRunOnline),
+		//fyne.NewMenuItem("Run Offline", h.menuActionRunOffline),
+	)
+
+	helpMenu := fyne.NewMenu("Help",
+		fyne.NewMenuItem("Github", func() {
+			u, _ := url.Parse("https://github.com/hashlookup/hashlookup-gui")
+			_ = (*h.app).OpenURL(u)
+		}))
+	return fyne.NewMainMenu(file, helpMenu)
 }
 
 func (h *hgui) makeToolbar() *widget.Toolbar {
@@ -122,6 +129,7 @@ func (h *hgui) makeToolbar() *widget.Toolbar {
 		widget.NewToolbarAction(theme.DocumentSaveIcon(), h.menuActionSave),
 		//widget.NewToolbarAction(theme.MailForwardIcon(), h.menuActionRunOnline),
 		//widget.NewToolbarAction(theme.MailForwardIcon(), h.menuActionRunOffline),
+		widget.NewToolbarAction(theme.VisibilityOffIcon(), h.menuActionRunOffline),
 	)
 }
 

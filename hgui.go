@@ -21,6 +21,7 @@ type hashlookupTab struct {
 
 type hgui struct {
 	win              fyne.Window
+	app              *fyne.App
 	projectRoot      fyne.URI
 	resultsTabs      *container.DocTabs
 	fileTree         *xWidget.FileTree
