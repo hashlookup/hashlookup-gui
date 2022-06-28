@@ -25,6 +25,7 @@ type hgui struct {
 	resultsTabs      *container.DocTabs
 	fileTree         *xWidget.FileTree
 	openedHashlooker map[*container.TabItem]*hashlookupTab
+	offlineMode      bool
 	// The Bloom filter is tied to the application
 	filter *hashlookup.HashlookupBloom
 }

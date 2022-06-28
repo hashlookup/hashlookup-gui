@@ -13,6 +13,20 @@ import (
 	"hashlookup-gui/hashlookup"
 )
 
+func (h *hgui) showSwitchOffline() {
+	if h.offlineMode {
+		h.offlineMode = false
+		dialog.ShowInformation("Offline Mode", "Offline mode disabled", h.win)
+	} else if !h.offlineMode {
+		if h.filter.Ready {
+			h.offlineMode = true
+			dialog.ShowInformation("Offline Mode", "Offline mode enabled", h.win)
+		} else {
+			dialog.ShowInformation("Offline Mode", "No filter loaded", h.win)
+		}
+	}
+}
+
 func (h *hgui) showSaveBloomDialog() {
 	parent := widget.NewButton("Choose directory", nil)
 	dir := defaultDir()
@@ -69,19 +83,20 @@ func (h *hgui) makeMenu() *fyne.MainMenu {
 		fyne.NewMenu("File",
 			fyne.NewMenuItemSeparator(),
 			fyne.NewMenuItem("Download Filter", h.showSaveBloomDialog),
-			fyne.NewMenuItemSeparator(),
-			fyne.NewMenuItem("Save", h.menuActionSave),
-			fyne.NewMenuItem("Run Online", h.menuActionRunOnline),
-			fyne.NewMenuItem("Run Offline", h.menuActionRunOffline),
+			fyne.NewMenuItem("Switch Offline mode", h.showSwitchOffline),
+			//fyne.NewMenuItemSeparator(),
+			//fyne.NewMenuItem("Save", h.menuActionSave),
+			//fyne.NewMenuItem("Run Online", h.menuActionRunOnline),
+			//fyne.NewMenuItem("Run Offline", h.menuActionRunOffline),
 		))
 }
 
 func (h *hgui) makeToolbar() *widget.Toolbar {
 	return widget.NewToolbar(
-		widget.NewToolbarAction(theme.FileIcon(), h.showSaveBloomDialog),
+		//widget.NewToolbarAction(theme.FileIcon(), h.showSaveBloomDialog),
 		widget.NewToolbarAction(theme.DocumentSaveIcon(), h.menuActionSave),
-		widget.NewToolbarAction(theme.MailForwardIcon(), h.menuActionRunOnline),
-		widget.NewToolbarAction(theme.MailForwardIcon(), h.menuActionRunOffline),
+		//widget.NewToolbarAction(theme.MailForwardIcon(), h.menuActionRunOnline),
+		//widget.NewToolbarAction(theme.MailForwardIcon(), h.menuActionRunOffline),
 	)
 }
 
