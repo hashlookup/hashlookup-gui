@@ -110,7 +110,9 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 	var listFolders *widget.List
 	var listFiles *widget.List
 
-	if len(g.folderList) > 0 {
+	// TODO make this a preference, dead code for now
+	var enableFolder = false
+	if len(g.folderList) > 0 && enableFolder {
 		listFolders = widget.NewList(
 			func() int {
 				return len(g.folderList)
@@ -150,7 +152,8 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 						var err error
 						results, err := g.client.LookupSHA1(*g.fileList[id].Sha1Str)
 						if err != nil {
-							log.Fatal(err)
+							log.Println(results)
+							log.Println(err)
 						}
 						if results.S("message").String() == "\"Non existing SHA-1\"" {
 							g.fileList[id].Known.Set("Unknown")
@@ -173,7 +176,7 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 	case 1:
 		return toDisplay[0]
 	case 2:
-		// Create a merge slice to avoid minsize issues in VBox layout
+		// TODO fix this ugly thing when displaying folders and files
 		return container.NewGridWithColumns(1, toDisplay[0], toDisplay[1])
 	default:
 		return widget.NewLabel("Empty folder")
