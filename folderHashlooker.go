@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"hashlookup-gui/hashlookup"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"time"
@@ -45,13 +45,26 @@ func workerFunc(myinterface interface{}) interface{} {
 
 	tmpuri := myinterface.(fyne.URI)
 	fmt.Printf("Hashing %v\n", tmpuri.Name())
-	singleFile, err := ioutil.ReadFile(tmpuri.Path())
+	f, err := os.Open(tmpuri.Path())
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer f.Close()
+
 	h := sha1.New()
-	h.Write(singleFile)
+	if _, err := io.Copy(h, f); err != nil {
+		log.Fatal(err)
+	}
+
 	result = fmt.Sprintf("%x", h.Sum(nil))
+
+	//singleFile, err := ioutil.ReadFile(tmpuri.Path())
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//h := sha1.New()
+	//h.Write(singleFile)
+	//result = fmt.Sprintf("%x", h.Sum(nil))
 
 	return result
 }
