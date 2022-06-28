@@ -10,26 +10,28 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-
-	"hashlookup-gui/hashlookup"
 )
 
 func (h *hgui) showSwitchOffline() {
 	if h.offlineMode {
 		h.offlineMode = false
+		h.offlineTool.SetIcon(theme.VisibilityIcon())
+		h.toolBar.Refresh()
 		dialog.ShowInformation("Offline Mode", "Offline mode disabled", h.win)
 	} else if !h.offlineMode {
-		if h.filter.Ready {
+		if h.Filter.Ready {
 			h.offlineMode = true
+			h.offlineTool.SetIcon(theme.VisibilityOffIcon())
+			h.toolBar.Refresh()
 			dialog.ShowInformation("Offline Mode", "Offline mode enabled", h.win)
 		} else {
-			dialog.ShowInformation("Offline Mode", "No filter loaded", h.win)
+			dialog.ShowInformation("Offline Mode", "No Filter loaded", h.win)
 		}
 	}
 }
 
 func (h *hgui) loadFilterFromRemote() {
-	h.filter = hashlookup.NewHashlookupBloom("it's in your RAM dude.")
+	h.Filter = NewHashlookupBloom("it's in your RAM dude.", h)
 	h.OpenBloomFilter("remote")
 }
 
@@ -42,7 +44,7 @@ func (h *hgui) loadFilterFromFile() {
 		if u == nil {
 			return
 		}
-		h.filter = hashlookup.NewHashlookupBloom(u.URI().Path())
+		h.Filter = NewHashlookupBloom(u.URI().Path(), h)
 		if err != nil {
 			dialog.ShowError(err, h.win)
 		} else {
@@ -81,7 +83,7 @@ func (h *hgui) showSaveBloomDialog() {
 			return
 		}
 		var err error
-		h.filter = hashlookup.NewHashlookupBloom(filepath.Join(dir.Path(), name.Text))
+		h.Filter = NewHashlookupBloom(filepath.Join(dir.Path(), name.Text), h)
 		if err != nil {
 			dialog.ShowError(err, h.win)
 		} else {
@@ -124,13 +126,19 @@ func (h *hgui) makeMenu() *fyne.MainMenu {
 }
 
 func (h *hgui) makeToolbar() *widget.Toolbar {
-	return widget.NewToolbar(
+	if h.offlineMode {
+		h.offlineTool = widget.NewToolbarAction(theme.VisibilityOffIcon(), h.showSwitchOffline)
+	} else {
+		h.offlineTool = widget.NewToolbarAction(theme.VisibilityIcon(), h.showSwitchOffline)
+	}
+	h.toolBar = widget.NewToolbar(
 		//widget.NewToolbarAction(theme.FileIcon(), h.showSaveBloomDialog),
-		widget.NewToolbarAction(theme.DocumentSaveIcon(), h.menuActionSave),
+		//widget.NewToolbarAction(theme.DocumentSaveIcon(), h.menuActionSave),
 		//widget.NewToolbarAction(theme.MailForwardIcon(), h.menuActionRunOnline),
 		//widget.NewToolbarAction(theme.MailForwardIcon(), h.menuActionRunOffline),
-		widget.NewToolbarAction(theme.VisibilityOffIcon(), h.menuActionRunOffline),
+		h.offlineTool,
 	)
+	return h.toolBar
 }
 
 func defaultDir() fyne.ListableURI {

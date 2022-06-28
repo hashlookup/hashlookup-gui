@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"fmt"
 	"fyne.io/fyne/v2"
@@ -10,7 +11,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/Jeffail/gabs/v2"
-	"hashlookup-gui/hashlookup"
 	"io"
 	"log"
 	"os"
@@ -35,7 +35,7 @@ type fileLookup struct {
 type folderHashlooker struct {
 	uri        fyne.URI
 	hgui       *hgui
-	client     *hashlookup.Client
+	client     *Client
 	fileList   []*fileLookup
 	folderList []fyne.URI
 	tunnyHash  TunnyJob
@@ -62,22 +62,29 @@ func hashingWorkerFunc(myinterface interface{}) interface{} {
 }
 
 type requestingWorkerType struct {
-	c          *hashlookup.Client
-	fileLookup *fileLookup
+	c           *Client
+	b           *HashlookupBloom
+	offlineMode bool
+	fileLookup  *fileLookup
 }
 
 func requestingWorkerFunc(myinterface interface{}) interface{} {
 	tmpWorkerType := myinterface.(requestingWorkerType)
 	var err error
-	//results, err := tmpFileLookup.c.LookupSHA1()
-	results, err := tmpWorkerType.c.LookupSHA1(*tmpWorkerType.fileLookup.Sha1Str)
-	if err != nil {
-		log.Println(results)
-		log.Println(err)
+	if !tmpWorkerType.offlineMode {
+		var results *gabs.Container
+		results, err = tmpWorkerType.c.LookupSHA1(*tmpWorkerType.fileLookup.Sha1Str)
+		if err != nil {
+			log.Println(err)
+		}
+		//fmt.Printf("Request performed for %v\n", *tmpWorkerType.fileLookup.Sha1Str)
+		return results
+	} else {
+		var results bool
+		//fmt.Printf("Checking %v on filter\n", *tmpWorkerType.fileLookup.Sha1Str)
+		results = tmpWorkerType.b.B.Check(bytes.ToUpper([]byte(*tmpWorkerType.fileLookup.Sha1Str)))
+		return results
 	}
-
-	fmt.Printf("Request performed for %v\n", *tmpWorkerType.fileLookup.Sha1Str)
-	return results
 }
 
 func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
@@ -93,7 +100,7 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 
 	// Init hashlookup client
 	defaultTimeout := time.Second * 10
-	client := hashlookup.NewClient("https://hashlookup.circl.lu", os.Getenv("HASHLOOKUP_API_KEY"), defaultTimeout)
+	client := NewClient("https://hashlookup.circl.lu", os.Getenv("HASHLOOKUP_API_KEY"), defaultTimeout)
 
 	// Triaging files and folders
 	for _, uri := range data {
@@ -118,12 +125,20 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 				results := tunnyHash.Pool.Process(tmpUri).(string)
 				tmpFileLookup.Sha1.Set(results)
 
-				reqResults := tunnyReq.Pool.Process(requestingWorkerType{c: client, fileLookup: &tmpFileLookup}).(*gabs.Container)
-
-				if reqResults.S("message").String() == "\"Non existing SHA-1\"" {
-					tmpFileLookup.Known.Set("Unknown")
-				} else {
-					tmpFileLookup.Known.Set("Known")
+				if !hgui.offlineMode {
+					reqResults := tunnyReq.Pool.Process(requestingWorkerType{c: client, b: hgui.Filter, offlineMode: hgui.offlineMode, fileLookup: &tmpFileLookup}).(*gabs.Container)
+					if reqResults.S("message").String() == "\"Non existing SHA-1\"" {
+						tmpFileLookup.Known.Set("Unknown")
+					} else {
+						tmpFileLookup.Known.Set("Known")
+					}
+				} else if hgui.offlineMode {
+					reqResults := tunnyReq.Pool.Process(requestingWorkerType{c: client, b: hgui.Filter, offlineMode: hgui.offlineMode, fileLookup: &tmpFileLookup}).(bool)
+					if reqResults {
+						tmpFileLookup.Known.Set("Known")
+					} else {
+						tmpFileLookup.Known.Set("Unknown")
+					}
 				}
 			}()
 

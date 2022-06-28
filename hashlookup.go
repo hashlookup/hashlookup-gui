@@ -1,4 +1,4 @@
-package hashlookup
+package main
 
 import (
 	"fmt"
@@ -32,7 +32,8 @@ type (
 	}
 
 	HashlookupBloom struct {
-		b    *bloom.BloomFilter
+		hgui *hgui
+		B    *bloom.BloomFilter
 		path string
 		// if the download completed
 		Complete bool
@@ -105,15 +106,16 @@ func (c *Client) LookupSHA1(sha1 string) (resp *gabs.Container, err error) {
 // Create a new HashlookupBloom
 // holding its tabs and the different string bindings
 // the filter itself may not be ready after creation
-func NewHashlookupBloom(path string) *HashlookupBloom {
+func NewHashlookupBloom(path string, h *hgui) *HashlookupBloom {
 	tmpBloom := bloom.BloomFilter{}
 	counter := &WriteCounter{}
 	return &HashlookupBloom{
-		b:        &tmpBloom,
+		B:        &tmpBloom,
 		path:     path,
 		counter:  counter,
 		Complete: false,
 		Ready:    false,
+		hgui:     h,
 	}
 }
 
@@ -128,7 +130,7 @@ func (h *HashlookupBloom) DownloadFilterToFilter() error {
 	if err != nil {
 		return err
 	}
-	h.b, err = bloom.LoadFromReader(src, _bloomFilterGzip)
+	h.B, err = bloom.LoadFromReader(src, _bloomFilterGzip)
 	if err != nil {
 		log.Fatalf("Issue when reading from the remote %s: %s", _bloomFilterDefaultUrl, err)
 	}
@@ -136,6 +138,7 @@ func (h *HashlookupBloom) DownloadFilterToFilter() error {
 	h.GetFilterDetails()
 	h.Ready = true
 	h.StopBar()
+	h.hgui.showSwitchOffline()
 	return nil
 }
 
@@ -164,13 +167,14 @@ func (h *HashlookupBloom) DownloadFilterToFile() error {
 // located at path. Beware this is blocking and takes time
 func (h *HashlookupBloom) LoadFilterFromFile() error {
 	var err error
-	h.b, err = bloom.LoadFilter(h.path, _bloomFilterGzip)
+	h.B, err = bloom.LoadFilter(h.path, _bloomFilterGzip)
 	h.GetFilterDetails()
 	if err != nil {
 		log.Fatal(err)
 	}
 	h.Ready = true
 	h.StopBar()
+	h.hgui.showSwitchOffline()
 	return nil
 }
 
@@ -221,11 +225,11 @@ func (h *HashlookupBloom) GetProgress() string {
 func (h *HashlookupBloom) GetFilterDetails() string {
 	tmpStr := ""
 	tmpStr += fmt.Sprintf("File:\t\t\t%s\n", h.path)
-	tmpStr += fmt.Sprintf("Capacity:\t\t%d\n", h.b.MaxNumElements())
-	tmpStr += fmt.Sprintf("Elements present:\t%d\n", h.b.N)
-	tmpStr += fmt.Sprintf("FP probability:\t\t%.2e\n", h.b.FalsePositiveProb())
-	tmpStr += fmt.Sprintf("Bits:\t\t\t%d\n", h.b.NumBits())
-	tmpStr += fmt.Sprintf("Hash functions:\t\t%d\n", h.b.NumHashFuncs())
+	tmpStr += fmt.Sprintf("Capacity:\t\t%d\n", h.B.MaxNumElements())
+	tmpStr += fmt.Sprintf("Elements present:\t%d\n", h.B.N)
+	tmpStr += fmt.Sprintf("FP probability:\t\t%.2e\n", h.B.FalsePositiveProb())
+	tmpStr += fmt.Sprintf("Bits:\t\t\t%d\n", h.B.NumBits())
+	tmpStr += fmt.Sprintf("Hash functions:\t\t%d\n", h.B.NumHashFuncs())
 	return tmpStr
 }
 

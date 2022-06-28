@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 	xWidget "fyne.io/x/fyne/widget"
-	"hashlookup-gui/hashlookup"
 	"log"
 	"time"
 )
@@ -27,8 +28,10 @@ type hgui struct {
 	fileTree         *xWidget.FileTree
 	openedHashlooker map[*container.TabItem]*hashlookupTab
 	offlineMode      bool
+	offlineTool      *widget.ToolbarAction
+	toolBar          *widget.Toolbar
 	// The Bloom filter is tied to the application
-	filter *hashlookup.HashlookupBloom
+	Filter *HashlookupBloom
 }
 
 func (h *hgui) OpenHashlooker(u fyne.URI) {
@@ -49,8 +52,13 @@ func (h *hgui) OpenHashlooker(u fyne.URI) {
 			hl = hashlookerByURI["folder"](u, h)
 			icon = theme.FolderOpenIcon()
 		} else if err == nil && !isDir {
-			hl = hashlookerByURI["file"](u, h)
-			icon = theme.FileIcon()
+			if !h.offlineMode {
+				hl = hashlookerByURI["file"](u, h)
+				icon = theme.FileIcon()
+			} else {
+				dialog.ShowInformation("Offline Mode", "Cannot lookup details in offline mode.", h.win)
+				return
+			}
 		} else if err != nil {
 			log.Fatal(err)
 		}
@@ -70,22 +78,22 @@ func (h *hgui) OpenBloomFilter(operation string) {
 	switch operation {
 	case "download":
 		// Closing the tab won't kill it
-		go h.filter.DownloadFilterToFile()
+		go h.Filter.DownloadFilterToFile()
 		// Let's launch a routing to monitor when it finishes
 		go func() {
-			for !h.filter.Complete {
+			for !h.Filter.Complete {
 				time.Sleep(time.Second * 1)
 			}
 			// Load the Filter and provide the filter details
-			h.filter.LoadFilterFromFile()
+			h.Filter.LoadFilterFromFile()
 		}()
 	case "load":
-		go h.filter.LoadFilterFromFile()
+		go h.Filter.LoadFilterFromFile()
 	case "remote":
-		go h.filter.DownloadFilterToFilter()
+		go h.Filter.DownloadFilterToFilter()
 	}
 
-	newTab := container.NewTabItemWithIcon("Bloom filter", theme.InfoIcon(), h.filter.Content())
+	newTab := container.NewTabItemWithIcon("Bloom filter", theme.InfoIcon(), h.Filter.Content())
 	h.resultsTabs.Append(newTab)
 	h.resultsTabs.Select(newTab)
 }

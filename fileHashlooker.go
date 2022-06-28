@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
-	"hashlookup-gui/hashlookup"
 	"io/ioutil"
 	"log"
 	"os"
@@ -24,7 +23,7 @@ type line struct {
 type fileHashlooker struct {
 	uri                fyne.URI
 	hgui               *hgui
-	client             *hashlookup.Client
+	client             *Client
 	sha1               string
 	hashlookupData     []line
 	hashlookupBindings []binding.DataMap
@@ -41,7 +40,7 @@ func newFileHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 	digest := fmt.Sprintf("%x", h.Sum(nil))
 	// Init hashlookup client
 	defaultTimeout := time.Second * 10
-	client := hashlookup.NewClient("https://hashlookup.circl.lu", os.Getenv("HASHLOOKUP_API_KEY"), defaultTimeout)
+	client := NewClient("https://hashlookup.circl.lu", os.Getenv("HASHLOOKUP_API_KEY"), defaultTimeout)
 	// Init bindings
 	hashlookupData := []line{}
 	hashlookupBindings := []binding.DataMap{}

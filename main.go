@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/storage"
-	"hashlookup-gui/hashlookup"
 	"os"
 	"path/filepath"
 )
@@ -29,8 +28,8 @@ func main() {
 	w := a.NewWindow("Hashlookup-gui")
 	w.Resize(fyne.NewSize(1024, 768))
 
-	tmpBloom := hashlookup.HashlookupBloom{}
-	ide := &hgui{win: w, offlineMode: false, filter: &tmpBloom, app: &a}
+	tmpBloom := HashlookupBloom{}
+	ide := &hgui{win: w, offlineMode: false, Filter: &tmpBloom, app: &a}
 	if len(os.Args) > 1 {
 		path, _ := filepath.Abs(os.Args[1])
 		root := storage.NewFileURI(path)
