@@ -9,6 +9,7 @@ import (
 	xWidget "fyne.io/x/fyne/widget"
 	"hashlookup-gui/hashlookup"
 	"log"
+	"time"
 )
 
 // hashlookupTab it tied to a URI under analysis
@@ -56,6 +57,26 @@ func (h *hgui) OpenHashlooker(u fyne.URI) {
 	newTab := container.NewTabItemWithIcon(u.Name(), icon, hl.content())
 	h.openedHashlooker[newTab] = &hashlookupTab{hl, u}
 
+	h.resultsTabs.Append(newTab)
+	h.resultsTabs.Select(newTab)
+}
+
+// OpenBloomFilter download / load the filter and is
+// a special tab that presents the filter's details
+// as well as its download progress
+func (h *hgui) OpenBloomFilter() {
+	// Closing the tab won't kill it
+	go h.filter.DownloadFilterToFile()
+	// Let's launch a routing to monitor when it finishes
+	go func() {
+		for !h.filter.Complete {
+			time.Sleep(time.Second * 1)
+		}
+		// Load the Filter and provide the filter details
+		h.filter.LoadFilterFromFile()
+	}()
+
+	newTab := container.NewTabItemWithIcon("Bloom filter", theme.InfoIcon(), h.filter.Content())
 	h.resultsTabs.Append(newTab)
 	h.resultsTabs.Select(newTab)
 }

@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"os"
+	"path/filepath"
 
 	"hashlookup-gui/hashlookup"
 )
@@ -41,13 +42,12 @@ func (h *hgui) showSaveBloomDialog() {
 		if !ok {
 			return
 		}
-
 		var err error
-		h.filter, err = hashlookup.NewFilterFromFile(dir.Path(), name.Text)
+		h.filter = hashlookup.NewHashlookupBloom(filepath.Join(dir.Path(), name.Text))
 		if err != nil {
 			dialog.ShowError(err, h.win)
 		} else {
-			h.win.Show()
+			h.OpenBloomFilter()
 		}
 	}, h.win)
 }

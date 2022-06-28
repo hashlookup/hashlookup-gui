@@ -2,20 +2,25 @@ package hashlookup
 
 import (
 	"fmt"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
 	"github.com/DCSO/bloom"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/Jeffail/gabs/v2"
 )
 
 const (
-	_bloomFilterDefaultUrl = "https://cra.circl.lu/hashlookup/hashlookup-full.bloom"
+	//_bloomFilterDefaultUrl = "https://cra.circl.lu/hashlookup/hashlookup-full.bloom"
+	_bloomFilterDefaultUrl = "http://127.0.0.1:8000/mybloom"
 	_bloomFilterGzip       = false
 )
 
@@ -27,14 +32,32 @@ type (
 	}
 
 	HashlookupBloom struct {
-		b    bloom.BloomFilter
+		b    *bloom.BloomFilter
 		path string
+		// if the download completed
+		Complete bool
+		// if the filter is ready to use
+		Ready bool
+		// number of bytes read
+		counter *WriteCounter
+		content fyne.CanvasObject
 	}
 )
 
 const (
 	hashlookupURL = "lookup/sha1"
 )
+
+// WriteCounter counts the number of bytes written to it.
+type WriteCounter struct {
+	Total int64 // Total # of bytes transferred
+}
+
+func (wc *WriteCounter) Write(p []byte) (int, error) {
+	n := len(p)
+	wc.Total += int64(n)
+	return n, nil
+}
 
 func NewClient(host string, apiKey string, timeout time.Duration) *Client {
 	client := &http.Client{
@@ -79,32 +102,109 @@ func (c *Client) LookupSHA1(sha1 string) (resp *gabs.Container, err error) {
 	return resp, nil
 }
 
-// Make this non blocking
-func NewFilterFromFile(path string, name string) (*HashlookupBloom, error) {
-	var err error
-	path = filepath.Join(path, name)
-	fmt.Println(path)
-	fmt.Println(name)
+// Create a new HashlookupBloom
+// holding its tabs and the different string bindings
+// the filter itself may not be ready after creation
+func NewHashlookupBloom(path string) *HashlookupBloom {
+	tmpBloom := bloom.BloomFilter{}
+	counter := &WriteCounter{}
+	return &HashlookupBloom{
+		b:        &tmpBloom,
+		path:     path,
+		counter:  counter,
+		Complete: false,
+		Ready:    false,
+	}
+}
 
-	out, err := os.Create(path)
+// DownloadFilterToFile is download the bloom filter into
+// the file at path. Beware this is blocking and take time
+func (h *HashlookupBloom) DownloadFilterToFile() error {
+	var err error
+	out, err := os.Create(h.path)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer out.Close()
 	resp, err := http.Get(_bloomFilterDefaultUrl)
 	defer resp.Body.Close()
-	_, err = io.Copy(out, resp.Body)
+	// wrap http.Get in the WriteCounter
+	src := io.TeeReader(resp.Body, h.counter)
+	_, err = io.Copy(out, src)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	h.Complete = true
+	return nil
+}
 
-	tmpBloom, err := bloom.LoadFilter(path, _bloomFilterGzip)
+func (h *HashlookupBloom) LoadFilterFromFile() error {
+	var err error
+	h.b, err = bloom.LoadFilter(h.path, _bloomFilterGzip)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	h.GetFilterDetails()
+	h.Ready = true
+	h.StopBar()
+	return nil
+}
 
-	return &HashlookupBloom{
-		b:    *tmpBloom,
-		path: path,
-	}, err
+func (h *HashlookupBloom) Content() fyne.CanvasObject {
+	content := widget.NewLabel("Bloom Filter Download:")
+	tmpProgress := h.GetProgress()
+	tmpDetails := ""
+	progressBinding := binding.BindString(&tmpProgress)
+	detailsBinging := binding.BindString(&tmpDetails)
+	progress := widget.NewLabelWithData(progressBinding)
+	details := widget.NewLabelWithData(detailsBinging)
+
+	go func() {
+		for !h.Complete {
+			time.Sleep(time.Millisecond * 200)
+			tmpProgress = h.GetProgress()
+			progressBinding.Set(tmpProgress)
+			progressBinding.Reload()
+		}
+		tmpProgress = fmt.Sprintf("Download complete with %s", tmpProgress)
+		progressBinding.Set(tmpProgress)
+		progressBinding.Reload()
+	}()
+
+	go func() {
+		for !h.Ready {
+			time.Sleep(time.Second * 1)
+		}
+		tmpDetails = h.GetFilterDetails()
+		detailsBinging.Set(tmpDetails)
+		detailsBinging.Reload()
+	}()
+
+	infinite := widget.NewProgressBarInfinite()
+	grid := container.New(layout.NewGridLayout(2), content, progress)
+	// details will be stretched in the middle
+	container := container.NewBorder(grid, infinite, nil, nil, details)
+	h.content = container
+
+	return container
+}
+
+func (h *HashlookupBloom) GetProgress() string {
+	tmpStr := fmt.Sprintf("%d bytes.", h.counter.Total)
+	return tmpStr
+}
+
+func (h *HashlookupBloom) GetFilterDetails() string {
+	tmpStr := ""
+	tmpStr += fmt.Sprintf("File:\t\t\t%s\n", h.path)
+	tmpStr += fmt.Sprintf("Capacity:\t\t%d\n", h.b.MaxNumElements())
+	tmpStr += fmt.Sprintf("Elements present:\t%d\n", h.b.N)
+	tmpStr += fmt.Sprintf("FP probability:\t\t%.2e\n", h.b.FalsePositiveProb())
+	tmpStr += fmt.Sprintf("Bits:\t\t\t%d\n", h.b.NumBits())
+	tmpStr += fmt.Sprintf("Hash functions:\t\t%d\n", h.b.NumHashFuncs())
+	return tmpStr
+}
+
+func (h *HashlookupBloom) StopBar() {
+	h.content.(*fyne.Container).Objects[2].(*widget.ProgressBarInfinite).Hide()
 }
