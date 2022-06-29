@@ -5,6 +5,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	xWidget "fyne.io/x/fyne/widget"
 )
@@ -30,10 +31,10 @@ func (h *hgui) makeFilesPanel() *xWidget.FileTree {
 
 func (h *hgui) makeResultsPanel() fyne.CanvasObject {
 	h.openedHashlooker = make(map[*container.TabItem]*hashlookupTab)
-	welcome := widget.NewLabel("Welcome to Hashlookup-gui, the blahblah.\n\nChoose a starting folder in the list.")
+	welcome := widget.NewLabel("Welcome to Hashlookup-gui, the GUI to query hashlookup service.\n\nChoose a starting folder in the list to investigate whether the files it contains are known from hashlookup.")
 	h.resultsTabs = container.NewDocTabs(
-		container.NewTabItem("Welcome", welcome),
-	)
+		container.NewTabItemWithIcon("Welcome", theme.HomeIcon(),
+			container.NewCenter(welcome)))
 
 	h.resultsTabs.CloseIntercept = func(t *container.TabItem) {
 		hl, ok := h.openedHashlooker[t]

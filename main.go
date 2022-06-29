@@ -9,16 +9,16 @@ import (
 	"path/filepath"
 )
 
-func (d *hgui) setProject(u fyne.URI) {
-	d.projectRoot = u
+func (h *hgui) setProject(u fyne.URI) {
+	h.projectRoot = u
 
-	content := d.makeResultsPanel()
-	d.fileTree = d.makeFilesPanel()
-	mainSplit := container.NewHSplit(d.fileTree, content)
+	content := h.makeResultsPanel()
+	h.fileTree = h.makeFilesPanel()
+	mainSplit := container.NewHSplit(h.fileTree, content)
 	mainSplit.Offset = 0.2
 
-	d.win.SetMainMenu(d.makeMenu())
-	d.win.SetContent(container.NewBorder(d.makeToolbar(), nil, nil, nil, mainSplit))
+	h.win.SetMainMenu(h.makeMenu())
+	h.win.SetContent(container.NewBorder(h.makeToolbar(), nil, nil, nil, mainSplit))
 }
 
 func main() {
@@ -28,14 +28,14 @@ func main() {
 	w.Resize(fyne.NewSize(1024, 768))
 
 	tmpBloom := HashlookupBloom{}
-	ide := &hgui{win: w, offlineMode: false, Filter: &tmpBloom, app: &a}
+	hgui := &hgui{win: w, offlineMode: false, Filter: &tmpBloom, app: &a}
 	if len(os.Args) > 1 {
 		path, _ := filepath.Abs(os.Args[1])
 		root := storage.NewFileURI(path)
-		ide.setProject(root)
+		hgui.setProject(root)
 	} else {
 		root := defaultDir()
-		ide.setProject(root)
+		hgui.setProject(root)
 	}
 
 	w.ShowAndRun()
