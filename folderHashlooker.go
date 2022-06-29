@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -42,23 +43,26 @@ type folderHashlooker struct {
 	tunnyReq   TunnyJob
 }
 
+type resultsWorkerType struct {
+	err     error
+	results interface{}
+}
+
 func hashingWorkerFunc(myinterface interface{}) interface{} {
-	var result string
 	tmpuri := myinterface.(fyne.URI)
-	fmt.Printf("Hashing %v\n", tmpuri.Name())
 	f, err := os.Open(tmpuri.Path())
 	if err != nil {
-		log.Fatal(err)
+		return resultsWorkerType{err: err, results: fmt.Sprintf("File error on %v\n", tmpuri.Name())}
 	}
 	defer f.Close()
 
 	h := sha1.New()
 	if _, err := io.Copy(h, f); err != nil {
 		log.Fatal(err)
+		return resultsWorkerType{err: err, results: fmt.Sprintf("Copy error on %v\n", tmpuri.Name())}
 	}
 
-	result = fmt.Sprintf("%x", h.Sum(nil))
-	return result
+	return resultsWorkerType{err: nil, results: fmt.Sprintf("%x", h.Sum(nil))}
 }
 
 type requestingWorkerType struct {
@@ -75,15 +79,15 @@ func requestingWorkerFunc(myinterface interface{}) interface{} {
 		var results *gabs.Container
 		results, err = tmpWorkerType.c.LookupSHA1(*tmpWorkerType.fileLookup.Sha1Str)
 		if err != nil {
-			log.Println(err)
+			return resultsWorkerType{err: err, results: fmt.Sprintf("Hashlookup service error on %v\n", *tmpWorkerType.fileLookup.Sha1Str)}
 		}
 		//fmt.Printf("Request performed for %v\n", *tmpWorkerType.fileLookup.Sha1Str)
-		return results
+		return resultsWorkerType{err: nil, results: results}
 	} else {
 		var results bool
 		//fmt.Printf("Checking %v on filter\n", *tmpWorkerType.fileLookup.Sha1Str)
 		results = tmpWorkerType.b.B.Check(bytes.ToUpper([]byte(*tmpWorkerType.fileLookup.Sha1Str)))
-		return results
+		return resultsWorkerType{err: nil, results: results}
 	}
 }
 
@@ -91,7 +95,7 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 	// List folder
 	data, err := storage.List(u)
 	if err != nil {
-		log.Fatal(err)
+		dialog.ShowError(err, hgui.win)
 	}
 	fileList := []*fileLookup{}
 	folderList := []fyne.URI{}
@@ -122,22 +126,29 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 			}
 
 			go func() {
-				results := tunnyHash.Pool.Process(tmpUri).(string)
-				tmpFileLookup.Sha1.Set(results)
-
-				if !hgui.offlineMode {
-					reqResults := tunnyReq.Pool.Process(requestingWorkerType{c: client, b: hgui.Filter, offlineMode: hgui.offlineMode, fileLookup: &tmpFileLookup}).(*gabs.Container)
-					if reqResults.S("message").String() == "\"Non existing SHA-1\"" {
-						tmpFileLookup.Known.Set("Unknown")
-					} else {
-						tmpFileLookup.Known.Set("Known")
-					}
-				} else if hgui.offlineMode {
-					reqResults := tunnyReq.Pool.Process(requestingWorkerType{c: client, b: hgui.Filter, offlineMode: hgui.offlineMode, fileLookup: &tmpFileLookup}).(bool)
-					if reqResults {
-						tmpFileLookup.Known.Set("Known")
-					} else {
-						tmpFileLookup.Known.Set("Unknown")
+				results := tunnyHash.Pool.Process(tmpUri).(resultsWorkerType)
+				tmpFileLookup.Sha1.Set(results.results.(string))
+				if results.err != nil {
+					return
+				} else {
+					if !hgui.offlineMode {
+						reqResults := tunnyReq.Pool.Process(requestingWorkerType{c: client, b: hgui.Filter, offlineMode: hgui.offlineMode, fileLookup: &tmpFileLookup}).(resultsWorkerType)
+						if reqResults.err != nil {
+							tmpFileLookup.Known.Set(reqResults.results.(string))
+						} else {
+							if reqResults.results.(*gabs.Container).S("message").String() == "\"Non existing SHA-1\"" {
+								tmpFileLookup.Known.Set("Unknown")
+							} else {
+								tmpFileLookup.Known.Set("Known")
+							}
+						}
+					} else if hgui.offlineMode {
+						reqResults := tunnyReq.Pool.Process(requestingWorkerType{c: client, b: hgui.Filter, offlineMode: hgui.offlineMode, fileLookup: &tmpFileLookup}).(resultsWorkerType)
+						if reqResults.results.(bool) {
+							tmpFileLookup.Known.Set("Known")
+						} else {
+							tmpFileLookup.Known.Set("Unknown")
+						}
 					}
 				}
 			}()
@@ -145,7 +156,7 @@ func newFolderHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 			fileList = append(fileList, &tmpFileLookup)
 
 		} else if err != nil {
-			log.Fatal(err)
+			dialog.ShowError(err, hgui.win)
 		}
 	}
 

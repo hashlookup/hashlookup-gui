@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"io/ioutil"
 	"log"
@@ -33,7 +34,7 @@ func newFileHashlooker(u fyne.URI, hgui *hgui) hashlooker {
 	// Compute Sha-1
 	singleFile, err := ioutil.ReadFile(u.Path())
 	if err != nil {
-		log.Fatal(err)
+		dialog.ShowError(err, hgui.win)
 	}
 	h := sha1.New()
 	h.Write(singleFile)

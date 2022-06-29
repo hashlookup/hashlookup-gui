@@ -3,10 +3,10 @@ package main
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 	xWidget "fyne.io/x/fyne/widget"
-	"log"
 )
 
 func (h *hgui) makeFilesPanel() *xWidget.FileTree {
@@ -18,12 +18,13 @@ func (h *hgui) makeFilesPanel() *xWidget.FileTree {
 	files.OnSelected = func(uid widget.TreeNodeID) {
 		u, err := storage.ParseURI(uid)
 		if err != nil {
-			log.Fatal(err)
+			dialog.ShowError(err, h.win)
+			return
 		}
-
 		h.OpenHashlooker(u)
 		return
 	}
+
 	return files
 }
 

@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	_bloomFilterDefaultUrl = "https://cra.circl.lu/hashlookup/hashlookup-full.bloom"
+	//_bloomFilterDefaultUrl = "https://cra.circl.lu/hashlookup/hashlookup-full.bloom"
+	_bloomFilterDefaultUrl = "http://127.0.0.1:8000/mybloom"
 	_bloomFilterGzip       = false
 )
 

@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	xWidget "fyne.io/x/fyne/widget"
-	"log"
 	"time"
 )
 
@@ -60,7 +59,8 @@ func (h *hgui) OpenHashlooker(u fyne.URI) {
 				return
 			}
 		} else if err != nil {
-			log.Fatal(err)
+			dialog.ShowError(err, h.win)
+			return
 		}
 	}
 
