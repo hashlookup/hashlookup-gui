@@ -1,6 +1,6 @@
 # hashlookup-gui
 
-Provide a multi-platform Graphical User Interface for querying hashlookup services (only [circl's](https://hashlookup.cirlc.lu) for the moment.)
+Provide a multi-platform Graphical User Interface for querying hashlookup services (only [circl's](https://hashlookup.circl.lu) at the moment.)
 
 
 # Features
@@ -8,9 +8,9 @@ Provide a multi-platform Graphical User Interface for querying hashlookup servic
 - Multi-platform:
   - windows
   - linux
-- Binary runs without installation
+- Binary runs without installation (so from a thumb drive for instance)
 - Queries online hashlookup services
-- Queries an offline Bloom filter for gaining speed and avoiding leaking known hashes
+- Queries an offline Bloom filter for gaining speed and avoiding leaking known hashes to the hashlookup service
 - Downloads bloom filter to a specified file
 - Can load bloom filter:
   - from a file
@@ -28,7 +28,7 @@ Provide a multi-platform Graphical User Interface for querying hashlookup servic
 - `go get github.com/hashlookup/hashlookup-gui` should work
 
 # Cross-compilation
-The project uses [fyne-cross](https://github.com/fyne-io/fyne-cross) to provide cross-compiled binaries and distribution packages.
+The project uses [fyne-cross](https://github.com/fyne-io/fyne-cross) to provide cross-compiled binaries and distribution packages, see releases.
 
 # Roadmap
 - support android, ios, darwin and freebsd
