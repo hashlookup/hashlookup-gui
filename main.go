@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -35,7 +34,8 @@ func main() {
 		root := storage.NewFileURI(path)
 		ide.setProject(root)
 	} else {
-		fmt.Println("else no args")
+		root := defaultDir()
+		ide.setProject(root)
 	}
 
 	w.ShowAndRun()
