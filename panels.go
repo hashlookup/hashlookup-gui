@@ -35,5 +35,17 @@ func (h *hgui) makeResultsPanel() fyne.CanvasObject {
 		container.NewTabItem("Welcome", welcome),
 	)
 
+	h.resultsTabs.CloseIntercept = func(t *container.TabItem) {
+		hl, ok := h.openedHashlooker[t]
+		if !ok { // welcome tab or bloom filter tab won't close for now
+			return
+		} else {
+			hl.close()
+			h.resultsTabs.Remove(t)
+			delete(h.openedHashlooker, t)
+			return
+		}
+	}
+
 	return container.NewMax(h.resultsTabs)
 }
