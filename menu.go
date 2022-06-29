@@ -104,6 +104,24 @@ func (h *hgui) menuActionSave() {
 	fmt.Println("Menu action save")
 }
 
+func (h *hgui) changeProjectDir() {
+	dialog.ShowFolderOpen(func(u fyne.ListableURI, err error) {
+		if err != nil {
+			dialog.ShowError(err, h.win)
+			return
+		}
+		if u == nil {
+			return
+		}
+		h.setProject(u)
+		if err != nil {
+			dialog.ShowError(err, h.win)
+		} else {
+			return
+		}
+	}, h.win)
+}
+
 func (h *hgui) makeMenu() *fyne.MainMenu {
 	file := fyne.NewMenu("File",
 		fyne.NewMenuItemSeparator(),
@@ -112,6 +130,8 @@ func (h *hgui) makeMenu() *fyne.MainMenu {
 		fyne.NewMenuItem("Load Filter From Remote", h.loadFilterFromRemote),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Switch Offline mode", h.showSwitchOffline),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Reset Tree Root", h.changeProjectDir),
 		//fyne.NewMenuItem("Save", h.menuActionSave),
 		//fyne.NewMenuItem("Run Online", h.menuActionRunOnline),
 		//fyne.NewMenuItem("Run Offline", h.menuActionRunOffline),
