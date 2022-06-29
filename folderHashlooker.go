@@ -217,7 +217,7 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 		// TODO fix this ugly thing when displaying folders and files
 		return container.NewGridWithColumns(1, toDisplay[0], toDisplay[1])
 	default:
-		return widget.NewLabel("Empty folder")
+		return widget.NewLabel("No Files to display in this folder.")
 	}
 }
 
