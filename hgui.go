@@ -81,11 +81,16 @@ func (h *hgui) OpenBloomFilter(operation string) {
 		go h.Filter.DownloadFilterToFile()
 		// Let's launch a routing to monitor when it finishes
 		go func() {
-			for !h.Filter.Complete {
+			for !h.Filter.Complete && !h.Filter.Cancelled {
 				time.Sleep(time.Second * 1)
 			}
-			// Load the Filter and provide the filter details
-			h.Filter.LoadFilterFromFile()
+			if h.Filter.Cancelled {
+				return
+			}
+			if h.Filter.Complete {
+				// Load the Filter and provide the filter details
+				h.Filter.LoadFilterFromFile()
+			}
 		}()
 	case "load":
 		go h.Filter.LoadFilterFromFile()
@@ -94,6 +99,7 @@ func (h *hgui) OpenBloomFilter(operation string) {
 	}
 
 	newTab := container.NewTabItemWithIcon("Bloom filter", theme.InfoIcon(), h.Filter.Content())
+	h.Filter.tabPtr = newTab
 	h.resultsTabs.Append(newTab)
 	h.resultsTabs.Select(newTab)
 }

@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/DCSO/bloom"
 	"io"
@@ -26,16 +27,20 @@ type (
 	}
 
 	HashlookupBloom struct {
-		hgui *hgui
-		B    *bloom.BloomFilter
-		path string
+		hgui   *hgui
+		tabPtr *container.TabItem
+		B      *bloom.BloomFilter
+		path   string
 		// if the download completed
 		Complete bool
+		// if the download was cancelled
+		Cancelled bool
 		// if the filter is ready to use
 		Ready bool
 		// number of bytes read
-		counter *WriteCounter
-		content fyne.CanvasObject
+		counter        *WriteCounter
+		content        fyne.CanvasObject
+		cancelDownload chan struct{}
 	}
 )
 
@@ -103,13 +108,15 @@ func (c *Client) LookupSHA1(sha1 string) (resp *gabs.Container, err error) {
 func NewHashlookupBloom(path string, h *hgui) *HashlookupBloom {
 	tmpBloom := bloom.BloomFilter{}
 	counter := &WriteCounter{}
+	tmpChan := make(chan struct{})
 	return &HashlookupBloom{
-		B:        &tmpBloom,
-		path:     path,
-		counter:  counter,
-		Complete: false,
-		Ready:    false,
-		hgui:     h,
+		B:              &tmpBloom,
+		path:           path,
+		counter:        counter,
+		Complete:       false,
+		Ready:          false,
+		hgui:           h,
+		cancelDownload: tmpChan,
 	}
 }
 
@@ -124,11 +131,26 @@ func (h *HashlookupBloom) DownloadFilterToFilter() error {
 	if err != nil {
 		return err
 	}
+	ch := make(chan struct{})
+	go func() {
+		select {
+		case <-h.cancelDownload:
+			fmt.Println("receive cancel")
+			// dirty but it's the easiest - the alternative is to wrap the reader in a custom
+			// reader that would understand contexts.
+			resp.Body.Close()
+			h.Cancelled = true
+		case <-ch:
+			return
+		}
+	}()
 	h.B, err = bloom.LoadFromReader(src, _bloomFilterGzip)
 	if err != nil {
-		log.Fatalf("Issue when reading from the remote %s: %s", _bloomFilterDefaultUrl, err)
+		fmt.Println("Issue when reading from the remote %s: %s", _bloomFilterDefaultUrl, err)
+	} else {
+		h.Complete = true
 	}
-	h.Complete = true
+	ch <- struct{}{}
 	h.GetFilterDetails()
 	h.Ready = true
 	h.StopBar()
@@ -146,14 +168,29 @@ func (h *HashlookupBloom) DownloadFilterToFile() error {
 	}
 	defer out.Close()
 	resp, err := http.Get(_bloomFilterDefaultUrl)
-	defer resp.Body.Close()
+	ch := make(chan struct{})
+	go func() {
+		select {
+		case <-h.cancelDownload:
+			fmt.Println("receive cancel")
+			// dirty but it's the easiest - the alternative is to wrap the reader in a custom
+			// reader that would understand contexts.
+			resp.Body.Close()
+			h.Cancelled = true
+		case <-ch:
+			return
+		}
+	}()
 	// wrap http.Get in the WriteCounter
 	src := io.TeeReader(resp.Body, h.counter)
 	_, err = io.Copy(out, src)
 	if err != nil {
-		log.Fatalf("Issue when reading from the remote %s: %s", _bloomFilterDefaultUrl, err)
+		//log.Fatalf("Issue when reading from the remote %s: %s", _bloomFilterDefaultUrl, err)
+		fmt.Println("Issue when reading from the remote %s: %s", _bloomFilterDefaultUrl, err)
+	} else {
+		h.Complete = true
 	}
-	h.Complete = true
+	ch <- struct{}{}
 	return nil
 }
 
@@ -203,9 +240,15 @@ func (h *HashlookupBloom) Content() fyne.CanvasObject {
 	}()
 
 	infinite := widget.NewProgressBarInfinite()
+	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
+		h.cancelDownload <- struct{}{}
+		h.hgui.resultsTabs.Remove(h.tabPtr)
+		return
+	})
+	bottomHboxContainer := container.NewBorder(nil, nil, nil, cancelBtn, infinite)
 	grid := container.New(layout.NewGridLayout(2), content, progress)
 	// details will be stretched in the middle
-	container := container.NewBorder(grid, infinite, nil, nil, details)
+	container := container.NewBorder(grid, bottomHboxContainer, nil, nil, details)
 	h.content = container
 
 	return container
@@ -228,5 +271,5 @@ func (h *HashlookupBloom) GetFilterDetails() string {
 }
 
 func (h *HashlookupBloom) StopBar() {
-	h.content.(*fyne.Container).Objects[2].(*widget.ProgressBarInfinite).Hide()
+	h.content.(*fyne.Container).Objects[2].(*fyne.Container).Hide()
 }
