@@ -18,11 +18,6 @@ import (
 	"github.com/Jeffail/gabs/v2"
 )
 
-const (
-	_bloomFilterDefaultUrl = "https://cra.circl.lu/hashlookup/hashlookup-full.bloom"
-	_bloomFilterGzip       = false
-)
-
 type (
 	Client struct {
 		host       string
@@ -137,7 +132,7 @@ func (h *HashlookupBloom) DownloadFilterToFilter() error {
 	h.GetFilterDetails()
 	h.Ready = true
 	h.StopBar()
-	h.hgui.showSwitchOffline()
+	h.hgui.setOffline()
 	return nil
 }
 
@@ -173,7 +168,7 @@ func (h *HashlookupBloom) LoadFilterFromFile() error {
 	}
 	h.Ready = true
 	h.StopBar()
-	h.hgui.showSwitchOffline()
+	h.hgui.setOffline()
 	return nil
 }
 

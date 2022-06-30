@@ -12,7 +12,22 @@ import (
 	"path/filepath"
 )
 
-func (h *hgui) showSwitchOffline() {
+func (h *hgui) setOffline() {
+	if h.offlineMode {
+		return
+	} else {
+		if h.Filter.Ready {
+			h.offlineMode = true
+			h.offlineTool.SetIcon(theme.VisibilityOffIcon())
+			h.toolBar.Refresh()
+			dialog.ShowInformation("Offline Mode", "Offline mode enabled", h.win)
+		} else {
+			dialog.ShowInformation("Offline Mode", "No Filter loaded", h.win)
+		}
+	}
+}
+
+func (h *hgui) switchOffline() {
 	if h.offlineMode {
 		h.offlineMode = false
 		h.offlineTool.SetIcon(theme.VisibilityIcon())
@@ -129,7 +144,7 @@ func (h *hgui) makeMenu() *fyne.MainMenu {
 		fyne.NewMenuItem("Load Filter From File", h.loadFilterFromFile),
 		fyne.NewMenuItem("Load Filter From Remote", h.loadFilterFromRemote),
 		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem("Switch Offline mode", h.showSwitchOffline),
+		fyne.NewMenuItem("Switch Offline mode", h.switchOffline),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Reset Tree Root", h.changeProjectDir),
 		//fyne.NewMenuItem("Save", h.menuActionSave),
@@ -147,9 +162,9 @@ func (h *hgui) makeMenu() *fyne.MainMenu {
 
 func (h *hgui) makeToolbar() *widget.Toolbar {
 	if h.offlineMode {
-		h.offlineTool = widget.NewToolbarAction(theme.VisibilityOffIcon(), h.showSwitchOffline)
+		h.offlineTool = widget.NewToolbarAction(theme.VisibilityOffIcon(), h.switchOffline)
 	} else {
-		h.offlineTool = widget.NewToolbarAction(theme.VisibilityIcon(), h.showSwitchOffline)
+		h.offlineTool = widget.NewToolbarAction(theme.VisibilityIcon(), h.switchOffline)
 	}
 	h.toolBar = widget.NewToolbar(
 		//widget.NewToolbarAction(theme.FileIcon(), h.showSaveBloomDialog),
