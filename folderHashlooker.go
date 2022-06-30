@@ -184,6 +184,7 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 		)
 		listFolders.OnSelected = func(id widget.ListItemID) {
 			g.hgui.OpenHashlooker(g.folderList[id])
+			listFolders.UnselectAll()
 		}
 		toDisplay = append(toDisplay, listFolders)
 	}
@@ -206,6 +207,7 @@ func (g *folderHashlooker) content() fyne.CanvasObject {
 
 		listFiles.OnSelected = func(id widget.ListItemID) {
 			g.hgui.OpenHashlooker(*(g.fileList[id].Uri))
+			listFiles.UnselectAll()
 		}
 		toDisplay = append(toDisplay, listFiles)
 	}

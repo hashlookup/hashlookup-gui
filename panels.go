@@ -23,6 +23,7 @@ func (h *hgui) makeFilesPanel() *xWidget.FileTree {
 			return
 		}
 		h.OpenHashlooker(u)
+		files.UnselectAll()
 		return
 	}
 
