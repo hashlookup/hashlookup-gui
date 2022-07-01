@@ -25,10 +25,20 @@ Provide a multi-platform Graphical User Interface for querying hashlookup servic
 
 # Installation
 - Copy the released binary / packages 
-- `go get github.com/hashlookup/hashlookup-gui` should work
+- `go install github.com/hashlookup/hashlookup-gui` should work
+- or one can do `git pull` `go build` in the root folder
 
 # Cross-compilation
 The project uses [fyne-cross](https://github.com/fyne-io/fyne-cross) to provide cross-compiled binaries and distribution packages, see releases.
+To create cross-compiled binaries, install fyne-cross:
+```
+go get -u github.com/fyne-io/fyne-cross
+```
+Then in the root folder run:
+```
+fyne-cross windows
+```
+Binaries should be available in `./fyne-cross/bin/windows-amd64/`
 
 # Roadmap
 - support android, ios, darwin and freebsd
