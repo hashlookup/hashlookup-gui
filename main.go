@@ -27,8 +27,7 @@ func main() {
 	w := a.NewWindow("Hashlookup-gui")
 	w.Resize(fyne.NewSize(1024, 768))
 
-	tmpBloom := HashlookupBloom{}
-	hgui := &hgui{win: w, offlineMode: false, Filter: &tmpBloom, app: &a}
+	hgui := &hgui{win: w, offlineMode: false, app: &a}
 	if len(os.Args) > 1 {
 		path, _ := filepath.Abs(os.Args[1])
 		root := storage.NewFileURI(path)

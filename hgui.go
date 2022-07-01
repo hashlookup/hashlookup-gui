@@ -19,6 +19,12 @@ type hashlookupTab struct {
 	uri fyne.URI
 }
 
+// bloofilterTab holds the hashlookup filter and its tab-related data
+type bloomfilterTab struct {
+	tab      *container.TabItem
+	isOpened bool
+}
+
 type hgui struct {
 	win              fyne.Window
 	app              *fyne.App
@@ -31,6 +37,7 @@ type hgui struct {
 	toolBar          *widget.Toolbar
 	// The Bloom filter is tied to the application
 	Filter *HashlookupBloom
+	bfTab  *bloomfilterTab
 }
 
 func (h *hgui) OpenHashlooker(u fyne.URI) {
@@ -75,6 +82,39 @@ func (h *hgui) OpenHashlooker(u fyne.URI) {
 // a special tab that presents the filter's details
 // as well as its download progress
 func (h *hgui) OpenBloomFilter(operation string) {
+	// TODO write a newBloomFilterTab function
+	if h.Filter == nil {
+		fmt.Println("filter is nil")
+		h.Filter = &HashlookupBloom{}
+	}
+	// There was no tab struct so let's create one
+	if h.bfTab == nil {
+		fmt.Println("bfTab is nil")
+		h.bfTab = &bloomfilterTab{nil, false}
+	}
+
+	// It opened, it already exist
+	if h.bfTab.isOpened {
+		fmt.Println("bfTab is isOpened")
+		// need to cancel what was happening
+		h.Filter.cancelDownload <- struct{}{}
+		// reselect the tab if already opened
+		for _, item := range h.resultsTabs.Items {
+			if item == h.bfTab.tab {
+				h.resultsTabs.Select(h.bfTab.tab)
+				h.bfTab.isOpened = true
+			}
+		}
+		// create fresh content
+		h.bfTab.tab.Content = h.Filter.Content()
+		// If not opened yet, we open it
+	} else {
+		h.bfTab.tab = container.NewTabItemWithIcon("Bloom filter", theme.InfoIcon(), h.Filter.Content())
+		h.resultsTabs.Append(h.bfTab.tab)
+		h.resultsTabs.Select(h.bfTab.tab)
+		h.bfTab.isOpened = true
+	}
+
 	switch operation {
 	case "download":
 		// Closing the tab won't kill it
@@ -85,6 +125,8 @@ func (h *hgui) OpenBloomFilter(operation string) {
 				time.Sleep(time.Second * 1)
 			}
 			if h.Filter.Cancelled {
+				// Reset the value in case of object reuse
+				h.Filter.Cancelled = false
 				return
 			}
 			if h.Filter.Complete {
@@ -97,13 +139,4 @@ func (h *hgui) OpenBloomFilter(operation string) {
 	case "remote":
 		go h.Filter.DownloadFilterToFilter()
 	}
-
-	newTab := container.NewTabItemWithIcon("Bloom filter", theme.InfoIcon(), h.Filter.Content())
-	h.Filter.tabPtr = newTab
-	h.resultsTabs.Append(newTab)
-	h.resultsTabs.Select(newTab)
-}
-
-func (d *hgui) doStuff(u fyne.URI) {
-	fmt.Println("I do stuff.")
 }

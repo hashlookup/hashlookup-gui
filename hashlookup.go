@@ -27,10 +27,9 @@ type (
 	}
 
 	HashlookupBloom struct {
-		hgui   *hgui
-		tabPtr *container.TabItem
-		B      *bloom.BloomFilter
-		path   string
+		hgui *hgui
+		B    *bloom.BloomFilter
+		path string
 		// if the download completed
 		Complete bool
 		// if the download was cancelled
@@ -108,7 +107,7 @@ func (c *Client) LookupSHA1(sha1 string) (resp *gabs.Container, err error) {
 func NewHashlookupBloom(path string, h *hgui) *HashlookupBloom {
 	tmpBloom := bloom.BloomFilter{}
 	counter := &WriteCounter{}
-	tmpChan := make(chan struct{})
+	tmpChan := make(chan struct{}, 1)
 	return &HashlookupBloom{
 		B:              &tmpBloom,
 		path:           path,
@@ -123,6 +122,8 @@ func NewHashlookupBloom(path string, h *hgui) *HashlookupBloom {
 // DownloadFilterToFilter downloads the bloom filter
 // and load it without touching the disk
 func (h *HashlookupBloom) DownloadFilterToFilter() error {
+	h.Complete = false
+	h.Ready = false
 	var err error
 	resp, err := http.Get(_bloomFilterDefaultUrl)
 	defer resp.Body.Close()
@@ -132,6 +133,10 @@ func (h *HashlookupBloom) DownloadFilterToFilter() error {
 		return err
 	}
 	ch := make(chan struct{})
+	// make sure the cancelChan is empty before starting
+	for len(h.cancelDownload) > 0 {
+		<-h.cancelDownload
+	}
 	go func() {
 		select {
 		case <-h.cancelDownload:
@@ -149,18 +154,20 @@ func (h *HashlookupBloom) DownloadFilterToFilter() error {
 		fmt.Println("Issue when reading from the remote %s: %s", _bloomFilterDefaultUrl, err)
 	} else {
 		h.Complete = true
+		h.GetFilterDetails()
+		h.Ready = true
+		h.StopBar()
+		h.hgui.setOffline()
 	}
 	ch <- struct{}{}
-	h.GetFilterDetails()
-	h.Ready = true
-	h.StopBar()
-	h.hgui.setOffline()
 	return nil
 }
 
 // DownloadFilterToFile downloads the bloom filter into
 // the file at path. Beware this is blocking and takes time
 func (h *HashlookupBloom) DownloadFilterToFile() error {
+	h.Complete = false
+	h.Ready = false
 	var err error
 	out, err := os.Create(h.path)
 	if err != nil {
@@ -169,6 +176,10 @@ func (h *HashlookupBloom) DownloadFilterToFile() error {
 	defer out.Close()
 	resp, err := http.Get(_bloomFilterDefaultUrl)
 	ch := make(chan struct{})
+	// make sure the cancelChan is empty before starting the routine
+	for len(h.cancelDownload) > 0 {
+		<-h.cancelDownload
+	}
 	go func() {
 		select {
 		case <-h.cancelDownload:
@@ -197,15 +208,18 @@ func (h *HashlookupBloom) DownloadFilterToFile() error {
 // LoadFilterFromFile loads the bloom filter from the file
 // located at path. Beware this is blocking and takes time
 func (h *HashlookupBloom) LoadFilterFromFile() error {
-	var err error
-	h.B, err = bloom.LoadFilter(h.path, _bloomFilterGzip)
-	h.GetFilterDetails()
-	if err != nil {
-		log.Fatal(err)
+	if !h.Cancelled {
+		h.Ready = false
+		var err error
+		h.B, err = bloom.LoadFilter(h.path, _bloomFilterGzip)
+		h.GetFilterDetails()
+		if err != nil {
+			log.Fatal(err)
+		}
+		h.Ready = true
+		h.StopBar()
+		h.hgui.setOffline()
 	}
-	h.Ready = true
-	h.StopBar()
-	h.hgui.setOffline()
 	return nil
 }
 
@@ -242,7 +256,8 @@ func (h *HashlookupBloom) Content() fyne.CanvasObject {
 	infinite := widget.NewProgressBarInfinite()
 	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
 		h.cancelDownload <- struct{}{}
-		h.hgui.resultsTabs.Remove(h.tabPtr)
+		h.hgui.resultsTabs.Remove(h.hgui.bfTab.tab)
+		h.hgui.bfTab.isOpened = false
 		return
 	})
 	bottomHboxContainer := container.NewBorder(nil, nil, nil, cancelBtn, infinite)
