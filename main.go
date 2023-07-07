@@ -1,12 +1,13 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/storage"
-	"os"
-	"path/filepath"
 )
 
 func (h *hgui) setProject(u fyne.URI) {
@@ -36,6 +37,7 @@ func main() {
 		root := defaultDir()
 		hgui.setProject(root)
 	}
+	hgui.Filter = NewHashlookupBloom("Empty filter", hgui)
 
 	w.ShowAndRun()
 }

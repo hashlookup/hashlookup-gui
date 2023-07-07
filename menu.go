@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"net/url"
-	"os"
-	"path/filepath"
 )
 
 func (h *hgui) setOffline() {
